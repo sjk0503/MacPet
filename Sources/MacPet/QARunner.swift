@@ -8,13 +8,17 @@ import MacPetCore
 ///   {"tap": "CSS 선택자", "count": 3, "gap": 0.6, "hold": 0.06}   요소 가운데를 누른다. 다른 요소에 가려져 있으면 실패로 적는다.
 ///   {"type": "글자"}                                 키 입력으로 보낸다
 ///   {"wait": 1.5}                                    기다린다(초)
-///   {"native": {"type": "mission", "id": "copy"}}    네이티브 이벤트를 웹 화면에 보낸다
+///   {"native": {"type": "mission", "id": "copy"}}    네이티브 이벤트를 웹 화면에 보낸다. mission 에 attempt 를 안 적으면 웹이 지금 등록한
+///                                                    같은 미션의 attempt 가 붙는다(등록이 없거나 다른 미션이면 안 붙는다). 적은 attempt 는 그대로 간다
 ///   {"expect": "JS 식", "name": "설명"}              식이 참이면 PASS, 아니면 FAIL
 ///   {"expectSave": "JS 식", "name": "설명"}          그 순간 디스크의 점검용 저장 파일을 직접 읽어 `s` 로 묶고, 식이 참이면 PASS. 파일이 없거나 JSON 이 아니면 FAIL
 ///   {"eval": "JS 식"}                                값을 로그에 찍는다
 ///   {"snapshot": "/경로.png"}                        화면을 그림으로 저장
 ///   {"panelVisible": true}                           펫 창을 controller.show() / false 면 hide() 한다
 ///   {"until": "JS 식", "timeout": 5, "name": "설명"}  식이 참이 될 때까지 0.1초마다 확인한다. 참이 되면 PASS, timeout(초, 기본 5, 최대 60) 안에 안 되면 FAIL
+///
+/// JS 식에서는 `window.missionQA` 도우미를 쓸 수 있다(아래 `missionQAScript`). 첫 단계 전에 한 번 넣으며, 넣지 못하면 FAIL 로 적는다.
+/// expect·until 이 실패하면 그때의 화면 상태(`missionQA.describeState()`)를 같은 줄에 덧붙인다.
 final class QARunner {
     private let controller: PetPanelController
     private let steps: [[String: Any]]
@@ -57,7 +61,113 @@ final class QARunner {
         self.steps = steps
     }
 
-    func run() { next() }
+    /// 미션 점검 스크립트가 함께 쓰는 읽기 전용 도우미. 점검(--qa) 실행에서만, 첫 단계 전에 웹 화면에 한 번 넣는다.
+    /// 화면을 읽기만 한다(scrollIntoView 만 스크롤을 옮긴다). 앱 상태는 바꾸지 않는다.
+    private static let missionQAScript = #"""
+    (function () {
+      try {
+        const bubble = () => document.querySelector('#bubble');
+        const card = () => document.querySelector('#card');
+        const textOf = (selector) => {
+          const element = document.querySelector(selector);
+          return element ? element.textContent : null;
+        };
+        const missionRow = (missionId) => document.querySelector('.m-item[data-mission-id=' + missionId + ']');
+
+        window.missionQA = {
+          /** Id of the one mission the web app is watching right now, or null. */
+          currentMission() {
+            return document.getElementById('stage').dataset.watchMission || null;
+          },
+          /** True while the bubble shows the "내가 했어요" confirmation for a received signal. */
+          hasEvidenceConfirmation() {
+            return !!document.querySelector('#bubble .b-confirm-evidence');
+          },
+          isBubbleVisible() {
+            return !bubble().hidden;
+          },
+          /** Visible bubble text ('' while the bubble is hidden). */
+          bubbleText() {
+            return bubble().hidden ? '' : bubble().textContent;
+          },
+          /** Text of the first element matching the selector, or null when it is not mounted. */
+          buttonText: textOf,
+          /** True while the bubble offers ("다음 미션" + 알려 줘 / 나중에) a mission whose title contains titlePart. */
+          isOffering(titlePart) {
+            const title = bubble().querySelector('.b-title');
+            return !bubble().hidden && !!bubble().querySelector('.b-later') && !!title && title.textContent.includes(titlePart);
+          },
+          /** True while the bubble shows guide step stepNumber (1-based) of a mission whose title contains titlePart. */
+          isGuideStepVisible(titlePart, stepNumber) {
+            const name = bubble().querySelector('.b-name');
+            const step = bubble().querySelector('.b-step');
+            return !bubble().hidden && !!name && !!step
+              && name.textContent.includes(titlePart) && step.textContent.trim().startsWith(String(stepNumber));
+          },
+          isCardOpen() {
+            return !card().hidden;
+          },
+          chipText() {
+            return document.querySelector('#chip').textContent.trim();
+          },
+          missionRow,
+          /** Tag text of a mission row in the card ('+30 EXP', '✓ 완료', '권한 필요'), or null. */
+          missionTag(missionId) {
+            const row = missionRow(missionId);
+            return row ? row.querySelector('.tag').textContent : null;
+          },
+          /** Scrolls the element to the middle so a following tap can reach it. False when it is not mounted. */
+          scrollIntoView(selector) {
+            const element = document.querySelector(selector);
+            if (element) element.scrollIntoView({ block: 'center' });
+            return !!element;
+          },
+          /** For expectSave: throws (so the log shows the difference) unless the save has exactly this level, exp and done ids ('a,b' sorted). */
+          verifySavedProgress(save, level, exp, doneMissionIds) {
+            const actual = save.level + '/' + save.exp + '/' + Object.keys(save.done || {}).sort().join(',');
+            const expected = level + '/' + exp + '/' + doneMissionIds;
+            if (actual !== expected) throw new Error('save level/exp/done = ' + actual + ' (want ' + expected + ')');
+            return true;
+          },
+          /** One-line summary of what is on screen, appended to failed checks. */
+          describeState() {
+            const stage = document.getElementById('stage');
+            const text = bubble().hidden ? '(hidden)' : bubble().textContent.replace(/\s+/g, ' ').trim().slice(0, 80);
+            const buttons = Array.from(bubble().querySelectorAll('button')).map((b) => b.className.split(' ')[0]).join(',');
+            return 'watch=' + (stage.dataset.watchMission || 'none') + '#' + (stage.dataset.watchAttempt || '-')
+              + ' step=' + (textOf('#bubble .b-step') || '-')
+              + ' card=' + (card().hidden ? 'closed' : 'open')
+              + ' chip=' + this.chipText()
+              + ' bubble[' + buttons + ']=' + text;
+          },
+        };
+        return 'ok';
+      } catch (e) {
+        return 'error: ' + e;
+      }
+    })()
+    """#
+
+    /// 도우미를 넣은 뒤 첫 단계로 간다. 넣지 못해도(다른 페이지·스크립트 오류) 단계는 그대로 돌리되 실패로 센다.
+    func run() {
+        controller.evaluate(Self.missionQAScript) { v in
+            if (v as? String) != "ok" {
+                self.failed += 1
+                print("[qa] FAIL window.missionQA 준비 → \(v.map { "\($0)" } ?? "nil (위의 js error 참고)")")
+            }
+            self.next()
+        }
+    }
+
+    /// expect·until 실패를 적는다. 도우미가 있으면 그때의 화면 상태를 덧붙여, 무엇이 달랐는지 로그만으로 알 수 있게 한다.
+    private func failCheck(_ name: String, _ detail: String) {
+        failed += 1
+        controller.evaluate("(function(){ try { return window.missionQA ? window.missionQA.describeState() : ''; } catch (e) { return 'state error: ' + e; } })()") { v in
+            let state = (v as? String) ?? ""
+            print("[qa] FAIL \(name) → \(detail)" + (state.isEmpty ? "" : " | 화면: \(state)"))
+            self.next()
+        }
+    }
 
     private func after(_ seconds: Double, _ f: @escaping () -> Void) {
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: f)
@@ -83,15 +193,14 @@ final class QARunner {
         } else if let w = (step["wait"] as? NSNumber)?.doubleValue {
             after(w) { self.next() }
         } else if let ev = step["native"] as? [String: Any] {
-            controller.send(ev)
+            controller.sendInjected(ev) // attempt 없는 mission 은 지금 등록된 같은 미션의 attempt 로 보낸다
             print("[qa] native \(ev["type"] ?? "?") \(ev["id"] ?? ev["name"] ?? "")")
             after(0.2) { self.next() }
         } else if let expr = step["expect"] as? String {
             let name = step["name"] as? String ?? expr
             controller.evaluate("(function(){ try { return !!(\(expr)); } catch (e) { return 'error: ' + e; } })()") { v in
-                if (v as? Bool) == true { self.passed += 1; print("[qa] PASS \(name)") }
-                else { self.failed += 1; print("[qa] FAIL \(name) → \(v.map { "\($0)" } ?? "nil")") }
-                self.next()
+                if (v as? Bool) == true { self.passed += 1; print("[qa] PASS \(name)"); self.next() }
+                else { self.failCheck(name, v.map { "\($0)" } ?? "nil") }
             }
         } else if let expr = step["expectSave"] as? String {
             expectSave(expr, name: step["name"] as? String ?? expr)
@@ -144,7 +253,7 @@ final class QARunner {
     private func until(_ expr: String, name: String, deadline: Date) {
         controller.evaluate("(function(){ try { return !!(\(expr)); } catch (e) { return 'error: ' + e; } })()") { v in
             if (v as? Bool) == true { self.passed += 1; print("[qa] PASS \(name)"); self.next() }
-            else if Date() >= deadline { self.failed += 1; print("[qa] FAIL \(name) → 시간 안에 참이 되지 않음 (\(v.map { "\($0)" } ?? "nil"))"); self.next() }
+            else if Date() >= deadline { self.failCheck(name, "시간 안에 참이 되지 않음 (\(v.map { "\($0)" } ?? "nil"))") }
             else { self.after(0.1) { self.until(expr, name: name, deadline: deadline) } }
         }
     }

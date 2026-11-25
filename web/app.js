@@ -235,6 +235,12 @@
   let axGranted = false; // 손쉬운 사용 권한 (네이티브가 알려 줌, 저장하지 않음)
   let lastPointKey = 'null'; // 마지막으로 네이티브에 보낸 가리킬 대상(JSON)
   let nativeVisible = true; // 네이티브가 알려 주는 창 보임 여부
+  let axKnown = false; // 권한 상태를 한 번이라도 들었다 (듣기 전의 false 는 '꺼져 있음'으로 치지 않는다)
+  // 지켜보는 미션: 사용자가 직접 시작한 시도 하나뿐이다. 저장(S.guide)과 따로 있고 저장하지 않는다
+  // { id, attempt, pending(확인을 기다리는 신호가 왔다), sawFalse(권한 미션: 이 시도 중에 권한이 꺼져 있는 걸 봤다) }
+  let enroll = null;
+  let attemptSeq = 0; // 시도 번호. 세대가 바뀌어도 되돌리지 않고 늘어나기만 한다
+  const allowDev = !!boot && boot.allowDevCommands === true; // 개발 명령은 네이티브가 --debug·격리 QA 로 띄웠을 때만
 
   const $ = (id) => document.getElementById(id);
   const stage = $('stage'), card = $('card'), mover = $('mover'), bubbleEl = $('bubble'), cv = $('cv'), chip = $('chip');
@@ -357,7 +363,7 @@
     nativeVisible = v;
     try { if (typeof setLoopVisible === 'function') setLoopVisible(v); } catch (e) { post({ type: 'log', msg: 'setLoopVisible 실패: ' + e }); }
     if (v) resync(); // 보일 때마다 영역과 현재 가리킬 대상을 다시 알린다 (네이티브가 기다린다)
-    else if (was) { cancelRects(); syncPoint(); } // 가린 동안은 영역 계산을 멈추고 가리키기도 거둔다
+    else if (was) { cancelRects(); disarm(); renderBubble(); } // 가린 동안은 영역 계산을 멈추고 가리키기도 거둔다. 지켜보기도 끝낸다 (다시 보여도 '안내 계속하기'를 눌러야 이어진다)
   }
   function watchGeometry() {
     if (typeof ResizeObserver === 'function') {
@@ -446,7 +452,7 @@
     } else if (bubbleMode === 'offer') {
       bubbleEl.appendChild(el('div', 'b-hd', '다음 미션'));
       bubbleEl.appendChild(el('div', 'b-title', gm.title));
-      bubbleEl.appendChild(el('div', 'b-xp', `+${gm.xp || 0} EXP`));
+      bubbleEl.appendChild(el('div', 'b-xp', `완료하면 +${gm.xp || 0} EXP`)); // 아직 주지 않았다는 것을 글자로 밝힌다
       const row = el('div', 'b-btns');
       row.append(btn('b-go', '알려 줘', () => guideTo(0)), btn('b-later', '나중에', closeGuide));
       bubbleEl.appendChild(row);
@@ -463,12 +469,27 @@
       bubbleEl.appendChild(x);
       bubbleEl.appendChild(el('p', 'b-body', stepText(steps[i])));
       const row = el('div', 'b-btns');
-      if (gm.permission === 'accessibility') row.appendChild(btn('b-go', '권한 요청하기', () => post({ type: 'requestPermission', name: 'accessibility' })));
+      const perm = gm.permission === 'accessibility';
+      const armed = !!enroll && enroll.id === gm.id;
+      const pending = armed && enroll.pending;
+      if (pending) {
+        // 신호만으로는 경험치를 주지 않는다. 사용자가 이 단추로 확인해야 완료된다
+        const a = enroll.attempt;
+        const ok = btn('b-confirm-evidence b-go', '내가 했어요', () => confirmEvidence(a));
+        ok.setAttribute('aria-label', `${gm.title}, 내가 했어요. 누르면 미션이 완료돼요`);
+        row.appendChild(ok);
+      }
+      if (perm) row.appendChild(permissionBtn('b', gm));
+      else if (!armed) row.appendChild(btn('b-resume b-go', '안내 계속하기', resumeGuide));
       if (i > 0) row.appendChild(btn('b-prev', '이전', () => guideTo(i - 1, 'b-prev')));
       if (!last) row.appendChild(btn('b-next', '다음', () => guideTo(i + 1, 'b-next')));
       if (gm.settingsURL) row.appendChild(btn('b-set', '설정 열기', () => post({ type: 'openSettings', url: gm.settingsURL })));
       if (row.children.length) bubbleEl.appendChild(row);
-      if (last) bubbleEl.appendChild(el('div', 'b-note', '해 보면 제가 알아챌게요'));
+      const note = pending ? '방금 직접 하셨다면 ‘내가 했어요’를 눌러 주세요'
+        : perm ? (axGranted ? '이미 켜져 있어요. ‘허용 상태 확인’을 눌러 주세요' : last ? '권한을 켜면 제가 알아챌게요' : '')
+          : !armed ? '‘안내 계속하기’를 누르면 다시 지켜볼게요'
+            : last ? '해 보면 제가 알아챌게요' : '';
+      if (note) bubbleEl.appendChild(el('div', 'b-note', note));
     }
     bubbleEl.hidden = false;
     if (held) {
@@ -557,9 +578,12 @@
     persist();
     renderBubble();
   }
+  // '알려 줘'·'이전'·'다음': 사용자가 직접 누른 것이므로 아직 지켜보지 않는 미션이면 지켜보기 시작한다 (이미 지켜보는 중이면 그 시도를 그대로 둔다)
   function guideTo(i, focusCls) {
     if (!S.guide) return;
-    S.guide = { id: S.guide.id, step: i };
+    const id = S.guide.id;
+    S.guide = { id, step: i };
+    if (!enroll || enroll.id !== id) arm(id);
     persist();
     renderBubble();
     const b = (focusCls && bubbleEl.querySelector('.' + focusCls)) || bubbleEl.querySelector('.b-btns button');
@@ -567,8 +591,53 @@
   }
   function closeGuide() {
     S.guide = null;
+    disarm(); // 그만두면 지켜보기와 기다리던 신호도 버린다
     persist();
     renderBubble();
+  }
+  // '안내 계속하기': 다시 불러온 안내·가렸다 다시 보인 안내를 새 시도로 지켜본다
+  function resumeGuide() {
+    if (!S.guide || S.guide.step < 0) return;
+    const had = focusIn(bubbleEl);
+    if (!arm(S.guide.id) && readOnly) { say(statusText(), 4000); return; }
+    renderBubble();
+    if (had) focusOn(bubbleEl.querySelector('.b-btns button') || chip);
+  }
+
+  /* ───────── 지켜보기 (미션 등록) ───────── */
+  // 네이티브에는 {type:'watchMission', id, attempt} 로 알리고, 끝낼 때는 {type:'watchMission', id:null} 을 보낸다.
+  // 네이티브가 보내는 {type:'mission', id, attempt} 는 지금 등록된 시도와 둘 다 같을 때만 받는다
+  function markWatch() {
+    // 화면 검사(QA)가 읽을 수 있게 무대에 적어 둔다
+    if (enroll) { stage.dataset.watchMission = String(enroll.id); stage.dataset.watchAttempt = String(enroll.attempt); }
+    else { delete stage.dataset.watchMission; delete stage.dataset.watchAttempt; }
+  }
+  function disarm() {
+    if (!enroll) return;
+    enroll = null;
+    post({ type: 'watchMission', id: null });
+    markWatch();
+  }
+  // 웹 문서가 가려지면(네이티브 창 보임 알림과 따로 올 수 있다) 지켜보기와 기다리던 신호를 버리고 안내를 다시 그린다.
+  // 다시 보여도 저절로 등록하지 않는다. '안내 계속하기'나 권한 단추를 직접 눌러야 새 시도가 시작된다
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden || !enroll) return;
+    disarm();
+    renderBubble();
+  });
+  // 사용자가 직접 누른 동작에서만 부른다. 부를 때마다 새 시도 번호를 쓰고, 앞선 등록과 기다리던 신호는 버린다
+  function arm(id) {
+    const m = missions.find((x) => x.id === id);
+    if (!S || !S.hatched || !m || S.done[id] || isLocked(m) || gradActive || !shown() || readOnly) { disarm(); return false; }
+    enroll = { id, attempt: ++attemptSeq, pending: false, sawFalse: m.permission === 'accessibility' && axKnown && !axGranted };
+    post({ type: 'watchMission', id, attempt: enroll.attempt });
+    markWatch();
+    return true;
+  }
+  // 지금 이 미션을 완료로 기록해도 되는가 (알·잠김·가려짐·연출 중·읽기 전용이면 안 된다)
+  function canSubmit(id) {
+    const m = missions.find((x) => x.id === id);
+    return !!S && S.hatched && !!m && !S.done[id] && !isLocked(m) && shown() && !gradActive && !formOpen && !hatching && !saveBlocked();
   }
 
   /* ───────── 효과 ───────── */
@@ -580,10 +649,14 @@
     mover.appendChild(e);
     window.setTimeout(() => e.remove(), 1600);
   }
+  // 창이 투명하므로 무대를 덮지 않고 펫 캔버스만 밝힌다. filter 는 알파를 바꾸지 않아 빈 픽셀은 투명한 채로 남는다
+  let flashTimer = 0;
   function flash() {
-    const e = el('div', 'wpet-flash');
-    stage.appendChild(e);
-    window.setTimeout(() => e.remove(), 800);
+    cv.classList.remove('is-flash');
+    void cv.offsetWidth; // 연달아 불려도 처음부터 다시 번쩍인다
+    cv.classList.add('is-flash');
+    window.clearTimeout(flashTimer);
+    flashTimer = window.setTimeout(() => cv.classList.remove('is-flash'), 800);
   }
 
   /* ───────── 이름표 ───────── */
@@ -727,7 +800,7 @@
       return item;
     }
     const acts = el('div', 'm-acts');
-    if (permissionMission) acts.appendChild(btn('m-go', '권한 요청하기', () => post({ type: 'requestPermission', name: 'accessibility' })));
+    if (permissionMission) acts.appendChild(permissionBtn('m', m));
     if (!needsPermissionAgain) acts.appendChild(btn('m-go', '같이 하기', () => {
       const had = focusIn(card);
       closeCard();
@@ -742,7 +815,8 @@
       const c = el('div', 'm-confirm');
       c.setAttribute('role', 'group');
       c.setAttribute('aria-label', `${title} 미션을 직접 완료로 표시할까요?`);
-      const yes = btn('m-yes', '정말 해 봤어요', () => { confirmId = null; closeCard(); completeMission(m.id, true); });
+      const g = gen;
+      const yes = btn('m-yes', '정말 해 봤어요', () => { if (g === gen) manualComplete(m.id); });
       yes.addEventListener('keydown', (e) => { if (e.repeat) e.preventDefault(); }); // 앞 단추에서 누르고 있던 Enter 가 그대로 확인까지 넘어가지 않게
       c.appendChild(yes);
       c.appendChild(btn('m-no', '취소', () => { confirmId = null; showItem(m.id, { id: String(m.id), cls: 'm-skip' }); }));
@@ -752,9 +826,10 @@
     }
     return item;
   }
-  // 카드에서 고른 미션의 1단계부터 안내
+  // 카드에서 고른 미션의 1단계부터 안내. '같이 하기'는 늘 새 시도로 지켜본다 (다른 미션을 지켜보던 중이면 그쪽은 끝난다)
   function startGuide(id) {
     S.guide = { id, step: 0 };
+    arm(id);
     persist();
     renderBubble();
   }
@@ -925,6 +1000,7 @@
     if (unseen()) return;
     gradActive = true;
     closeCard(); // 떠나는 펫의 미션 카드·앨범을 닫아 졸업식이 보이게 한다
+    disarm(); // 졸업하는 펫은 더 지켜보지 않는다
     if (S.guide) { S.guide = null; syncPoint(); } // 하던 안내와 가리키기는 여기서 끝 (저장은 졸업 때 한 번만)
     visLevel = S.level; p.spec = specOf(); p.key = ''; // 다 자란 모습으로 보낸다
     p.play('celebrate');
@@ -1011,7 +1087,6 @@
     commit();
     pet.play('celebrate');
     announce([{ text: `${S.name}! 잘 부탁해요`, ms: 2600 }], afterIntro, true);
-    reconcileAccessibility(); // 인사 뒤에 줄을 세워 두되 경험치는 지금 저장한다
   }
   // 개발용: 두드리지 않고 바로 부화 (이름은 종 이름)
   function hatchNow() {
@@ -1023,7 +1098,6 @@
     commit();
     pet.play('surprise');
     announce([{ text: `${S.name}! 잘 부탁해요`, ms: 2600 }], afterIntro, true);
-    reconcileAccessibility();
   }
 
   /* ───────── 펫 두드리기 ───────── */
@@ -1080,10 +1154,11 @@
   function completeMission(id, manual) {
     const m = missions.find((x) => x.id === id);
     if (!S.hatched || !m || S.done[id] || gradActive) return false; // 졸업식 중에 온 신호는 다음 세대가 다시 배운다
-    if (m.permission === 'accessibility' && (!axGranted || !S.name || formOpen || hatching)) return false; // 이름을 짓기 전의 권한 신호는 기다렸다가 reconcile 이 처리한다
+    if (m.permission === 'accessibility' && (!axGranted || !S.name || formOpen || hatching)) return false; // 권한이 꺼져 있거나 이름을 짓기 전이면 주지 않는다 (나중에 저절로 주지도 않는다)
     S.done[id] = new Date().toISOString();
     if (manual) S.manual[id] = true;
     if (S.guide && S.guide.id === id) S.guide = null;
+    disarm(); // 미션 하나가 끝나면 지켜보던 시도도 끝난다. 다음 미션은 다시 직접 시작해야 한다
     syncPoint();
     const xp = m.xp || 0;
     const ev = grantExp(xp);
@@ -1093,31 +1168,91 @@
     return true;
   }
 
-  /* ───────── 네이티브 이벤트 ───────── */
-  // 알일 때 건너뛴 권한 미션을 현재 권한 상태로 맞춘다. 부화·이름 짓기가 끝난 뒤에만, 권한이 켜져 있을 때만, 한 번만 준다
-  function reconcileAccessibility() {
-    if (!S || !S.hatched || !S.name || formOpen || hatching || !axGranted) return;
-    const m = missions.find((x) => x.permission === 'accessibility');
-    if (m && !S.done[m.id]) completeMission(m.id);
+  /* ───────── 사용자가 직접 확인한 완료 ───────── */
+  // 경험치는 여기와 onEvidence(등록된 단축키)·onPermission(요청 중에 새로 켜진 권한)·펫 두드리기에서만 준다.
+  // 권하기·말풍선·권한 상태 알림·등록하지 않은 미션의 신호로는 주지 않는다
+  const refuse = () => { if (readOnly) say(statusText(), 4000); };
+  // 말풍선의 '내가 했어요': 그 단추가 그려진 시도가 아직 살아 있고 신호를 기다리는 중일 때만
+  function confirmEvidence(attempt) {
+    const e = enroll;
+    if (!e || e.attempt !== attempt || !e.pending) return;
+    if (!canSubmit(e.id)) { refuse(); return; }
+    completeMission(e.id);
   }
-  // 이름 짓기·인사 연출이 끝난 뒤: 놓친 권한 미션을 맞추고 다음 미션을 권한다
-  function afterIntro() { reconcileAccessibility(); offerNext(); }
+  // 카드의 '정말 해 봤어요': 펼쳐서 확인을 물은 바로 그 미션만 (권한 미션은 직접 완료할 수 없다)
+  function manualComplete(id) {
+    if (confirmId !== id) return;
+    const m = missions.find((x) => x.id === id);
+    confirmId = null;
+    if (!m || m.permission === 'accessibility' || !canSubmit(id)) { refreshCard(); refuse(); return; }
+    closeCard();
+    completeMission(id, true);
+  }
+  // 권한 미션의 단추 (말풍선 .b-permission · 카드 .m-permission). 이미 켜져 있으면 '허용 상태 확인', 아니면 '권한 요청하기'
+  function permissionBtn(prefix, m) {
+    const check = axGranted && !S.done[m.id];
+    return btn(`${prefix}-permission ${prefix}-go`, check ? '허용 상태 확인' : '권한 요청하기', () => (check ? checkPermission(m.id) : requestPermission(m.id)));
+  }
+  // 꺼져 있을 때의 요청: 이 미션을 새 시도로 등록해 두고 요청한다. 등록된 동안 권한이 새로 켜지면 완료된다.
+  // 이미 끝낸 미션(권한을 다시 켜야 하는 경우)은 등록하지 않으므로 경험치를 두 번 주지 않는다
+  function requestPermission(id) {
+    if (!S.done[id]) arm(id);
+    post({ type: 'requestPermission', name: 'accessibility' });
+    if (!S.done[id] && !enroll) refuse();
+  }
+  // 이미 켜져 있을 때의 확인: 사용자가 이 미션에서 직접 눌렀을 때만 완료한다
+  function checkPermission(id) {
+    const m = missions.find((x) => x.id === id);
+    if (!m || m.permission !== 'accessibility' || S.done[id]) return;
+    if (!axGranted) { requestPermission(id); return; } // 그사이 꺼졌으면 요청으로 바꾼다
+    if (!canSubmit(id)) { refuse(); return; }
+    closeCard();
+    completeMission(id);
+  }
+
+  /* ───────── 네이티브 이벤트 ───────── */
+  // {type:'mission', id, attempt}: 지금 등록된 시도와 id·attempt 가 모두 같을 때만 받는다 (없거나 다르거나 지난 번호는 버린다)
+  function onEvidence(ev) {
+    const e = enroll;
+    if (!e || typeof ev.id !== 'string' || ev.id !== e.id || !Number.isInteger(ev.attempt) || ev.attempt !== e.attempt) return;
+    const m = missions.find((x) => x.id === e.id);
+    if (!m || !canSubmit(e.id)) return;
+    if (m.permission === 'accessibility') return; // 권한 미션은 onPermission 의 꺼짐→켜짐이나 '허용 상태 확인'으로만 끝난다
+    // 등록한 미션의 단축키를 방금 직접 누른 것은 그대로 인정한다
+    if (m.trigger && m.trigger.type === 'shortcut') { completeMission(m.id); return; }
+    // 그 밖의 신호(앱 실행·클립보드·스크린샷·화면 모드·설정 값)는 사용자가 하지 않아도 생길 수 있다. 말풍선에서 확인을 받는다
+    if (e.pending || !S.guide || S.guide.id !== e.id || S.guide.step < 0) return;
+    e.pending = true;
+    if (tmp && !tmp.q && !busy) { window.clearTimeout(bubbleTimer); tmp = null; } // 두드려서 뜬 한마디는 걷고 확인 단추를 보여 준다
+    renderBubble();
+  }
+  // 이름 짓기·인사 연출이 끝난 뒤: 다음 미션을 권한다 (권하기만 한다. 권한이 이미 켜져 있어도 저절로 완료하지 않는다)
+  function afterIntro() { offerNext(); }
+  // 권한 알림은 상태만 바꾼다. 경험치는 권한 미션을 등록한 시도 중에 꺼져 있던 권한이 새로 켜졌을 때만 준다
   function onPermission(ev) {
-    if (ev.name !== 'accessibility') return;
-    const g = !!ev.granted;
-    if (g === axGranted) return;
+    if (ev.name !== 'accessibility' || typeof ev.granted !== 'boolean') return; // granted 가 불리언이 아니면 버린다 ('false'·1 같은 값을 참으로 읽지 않는다)
+    const g = ev.granted, was = axGranted, first = !axKnown;
+    axKnown = true;
+    if (g === was && !first) return;
     axGranted = g;
     if (!S) return;
+    const e = enroll, m = e ? missions.find((x) => x.id === e.id) : null;
+    let grant = false;
+    if (m && m.permission === 'accessibility') {
+      if (!g) e.sawFalse = true;
+      else grant = e.sawFalse;
+    } else if (m && isLocked(m)) disarm(); // 권한이 꺼져 잠긴 미션은 더 지켜보지 않는다
+    if (g === was) return;
     renderChip();
     if (cardOpen && cardView === 'missions') renderCard();
-    syncPoint();
-    reconcileAccessibility();
+    renderBubble(); // 권한 단추의 글자와 가리킬 대상을 맞춘다
+    if (grant && canSubmit(m.id)) completeMission(m.id);
     // 권하기가 비어 있고 연출 중이 아니면 다음 미션을 권한다 (풀린 미션을 억지로 권하진 않음: 연출 중이면 그쪽 흐름에 맡김)
     if (S.hatched && !busy && !formOpen && !S.guide) offerNext();
   }
   function handleNative(ev) {
     if (!ev) return;
-    if (ev.type === 'mission') { completeMission(ev.id); return; }
+    if (ev.type === 'mission') { onEvidence(ev); return; }
     if (ev.type === 'permission') { onPermission(ev); return; }
     if (ev.type === 'visibility') {
       if (typeof ev.visible === 'boolean') setNativeVisible(ev.visible); // 문서화된 {type:"visibility", visible:boolean} 만 받는다
@@ -1129,6 +1264,7 @@
     else if (ev.name === 'showCollection') openCollection(); // 첫 알이어도(빈 앨범) 열린다. 이미 열려 있으면 그대로
     else if (ev.name === 'reset') resetAll();
     else if (ev.name === 'devCompleteNext') {
+      if (!allowDev) { post({ type: 'log', msg: 'devCompleteNext 거부: 개발 명령이 꺼져 있음' }); return; } // 배포 실행·브라우저에서는 받지 않는다
       if (!S.hatched) { hatchNow(); return; }
       const next = missions.find((m) => !S.done[m.id] && !isLocked(m) && (m.permission !== 'accessibility' || axGranted));
       if (next) completeMission(next.id);
@@ -1172,6 +1308,7 @@
     window.clearTimeout(bubbleTimer);
     gen++; jobs = []; busy = false; confirmId = null; albumBack = null; focusWant = null;
     gradJob = null; gradQueued = false; gradActive = false; gradWait = false;
+    disarm(); // 지난 펫의 등록과 기다리던 신호는 새 세대로 넘어가지 않는다
     S = state;
     syncLearned();
     visLevel = 0;
@@ -1294,6 +1431,7 @@
     startLoop();
     renderChip();
     if (readOnly) chip.title = statusText();
+    post({ type: 'watchMission', id: null }); // 새로 뜬 화면은 아무 미션도 지켜보지 않는다 (저장된 안내는 보여 주기만 한다)
     persist(true); // 네이티브는 ready 전에 정리된 상태를 받아야 감시를 시작한다. 읽기 전용이면 아무것도 쓰지 않고, 바뀐 게 없으면 디스크도 건드리지 않는다
     post({ type: 'ready' });
     syncRects();

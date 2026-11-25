@@ -322,14 +322,15 @@ img, canvas { -webkit-user-drag: none; }
 @keyframes wpet-z { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(18px, -40px); } }
 .wpet-food { position: absolute; bottom: 4px; image-rendering: pixelated; pointer-events: none; animation: wpet-drop 0.35s steps(4) both; }
 @keyframes wpet-drop { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
-.wpet-flash { position: absolute; inset: 0; background: var(--paper); z-index: 80; pointer-events: none; animation: wpet-flash 0.7s ease-out forwards; }
-@keyframes wpet-flash { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; } }
+/* 부화·진화·졸업의 번쩍임: 투명한 창 위라서 면을 덮지 않고 펫의 색 있는 픽셀만 희게 밝힌다 (알파는 그대로) */
+.pet-cv.is-flash { animation: wpet-flash 0.7s ease-out; }
+@keyframes wpet-flash { 0%, 100% { filter: contrast(1) brightness(1); } 20% { filter: contrast(0.1) brightness(2); } }
 
 @media (prefers-reduced-motion: reduce) {
   .bubble, .card { animation: none; }
   .chip, .stage button, .stage input { transition: none; }
   .wpet-fx, .wpet-fx.wpet-z { animation: wpet-fade 1.2s ease-out forwards; }
   @keyframes wpet-fade { 0% { opacity: 1; } 100% { opacity: 0; } }
-  .wpet-flash { animation-duration: 0.2s; }
+  .pet-cv.is-flash { animation-duration: 0.2s; }
   .wpet-food { animation: none; }
 }

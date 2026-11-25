@@ -9,12 +9,21 @@
   "name": "졸업 전에는 앨범 항목이 없고 카드가 닫혀 있음"
  },
  {
+  "expect": "(function(){const q=window.__qaFlash={cv:0,bad:0};document.addEventListener('animationstart',e=>{if(e.animationName!=='wpet-flash')return;const t=e.target;if(t.id==='cv'&&t.tagName==='CANVAS'&&getComputedStyle(t).backgroundColor==='rgba(0, 0, 0, 0)')q.cv++;else q.bad++;},true);return true;})()",
+  "name": "첫 두드림 전에 번쩍임 감시를 붙임 (wpet-flash 애니메이션이 투명 배경의 #cv 캔버스에서 시작하면 cv, 다른 요소면 bad)"
+ },
+ {
   "tap": "#cv"
  },
  {
   "until": "(function(){const c=document.querySelector('#chip'),lv=c.querySelector('.lv');return !!lv&&lv.textContent==='LV10'&&c.textContent.includes('노을이')&&document.body.innerText.includes('졸업');})()",
   "timeout": 35,
   "name": "한 번 쓰다듬어 Lv.10 → 다 자란 펫이 아직 있는 채로 화면에 보이는 글자로 졸업을 알림"
+ },
+ {
+  "until": "window.__qaFlash.cv===1&&window.__qaFlash.bad===0",
+  "timeout": 3,
+  "name": "완성형 진화에서 펫 캔버스만 한 번 번쩍임 (졸업 번쩍임은 아직)"
  },
  {
   "until": "(function(){const c=document.querySelector('#chip');return !c.querySelector('.lv')&&c.textContent.includes('알');})()",
@@ -24,6 +33,11 @@
  {
   "expectSave": "(function(){if(s.v!==1||s.hatched!==false||!Array.isArray(s.collection)||s.collection.length!==1)return false;const r=s.collection[0];return r.name==='노을이'&&r.species==='uni'&&r.shiny===true&&Array.isArray(r.completed)&&r.completed.includes('removed-legacy-mission')&&r.completed.includes('spotlight-calc')&&r.completed.includes('screenshot');})()",
   "name": "v:1 저장 파일에 졸업 기록 1건 (이름·종·반짝이·끝낸 미션, 사라진 미션 id 포함)과 새 알이 함께 남음"
+ },
+ {
+  "until": "window.__qaFlash.cv===2&&window.__qaFlash.bad===0",
+  "timeout": 3,
+  "name": "졸업으로 새 알이 올 때 펫 캔버스가 한 번 더 번쩍임 (무대나 다른 요소는 번쩍이지 않음)"
  },
  {
   "tap": "#chip"
@@ -95,6 +109,11 @@
   "until": "!!document.querySelector('#bubble input') && !document.querySelector('#bubble').hidden",
   "timeout": 15,
   "name": "새 알을 세 번 두드려 부화 → 이름 칸"
+ },
+ {
+  "until": "window.__qaFlash.cv===3&&window.__qaFlash.bad===0",
+  "timeout": 3,
+  "name": "부화에서 펫 캔버스가 한 번 더 번쩍임 (무대나 다른 요소는 번쩍이지 않음)"
  },
  {
   "wait": 0.4

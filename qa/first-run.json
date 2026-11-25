@@ -1,19 +1,15 @@
 [
  {
-  "wait": 1.5
- },
- {
-  "expect": "document.querySelector('#bubble').textContent.includes('알이 도착')",
+  "until": "window.missionQA.bubbleText().includes('알이 도착')",
+  "timeout": 8,
   "name": "알 인사말이 뜸"
  },
  {
   "tap": "#chip"
  },
  {
-  "wait": 0.5
- },
- {
-  "expect": "document.querySelector('#bubble').textContent.includes('먼저 알')",
+  "until": "window.missionQA.bubbleText().includes('먼저 알')",
+  "timeout": 3,
   "name": "알일 때 이름표를 누르면 안내 문구"
  },
  {
@@ -22,10 +18,8 @@
   "gap": 0.7
  },
  {
-  "wait": 2.4
- },
- {
-  "expect": "!!document.querySelector('#bubble input')",
+  "until": "!!document.querySelector('#bubble input')",
+  "timeout": 8,
   "name": "세 번 눌러 부화 → 이름 칸"
  },
  {
@@ -35,64 +29,25 @@
   "type": "Mo"
  },
  {
-  "wait": 0.3
- },
- {
-  "expect": "document.querySelector('#bubble input').value.endsWith('Mo')",
+  "until": "document.querySelector('#bubble input').value.endsWith('Mo')",
+  "timeout": 3,
   "name": "이름 칸에 키 입력이 들어감"
  },
  {
   "tap": "#bubble form button"
  },
  {
-  "wait": 3.8
- },
- {
-  "expect": "!!document.querySelector('#bubble .b-go')",
+  "until": "window.missionQA.isOffering('Spotlight')",
+  "timeout": 12,
   "name": "이름 지은 뒤 첫 미션을 권함"
  },
  {
-  "tap": "#bubble .b-go"
+  "expect": "window.missionQA.buttonText('#bubble .b-go') === '알려 줘' && window.missionQA.currentMission() === null",
+  "name": "권하는 말풍선에는 '알려 줘'가 있고 아직 아무 미션도 지켜보지 않음"
  },
  {
-  "wait": 0.5
- },
- {
-  "expect": "(document.querySelector('#bubble .b-step')||{textContent:''}).textContent.trim().startsWith('1')",
-  "name": "알려 줘 → 안내 1단계"
- },
- {
-  "tap": "#bubble .b-next"
- },
- {
-  "wait": 0.4
- },
- {
-  "expect": "(document.querySelector('#bubble .b-step')||{textContent:''}).textContent.trim().startsWith('2')",
-  "name": "다음 → 2단계"
- },
- {
-  "tap": "#bubble .b-prev"
- },
- {
-  "wait": 0.4
- },
- {
-  "expect": "(document.querySelector('#bubble .b-step')||{textContent:''}).textContent.trim().startsWith('1')",
-  "name": "이전 → 1단계"
- },
- {
-  "tap": "#cv"
- },
- {
-  "wait": 0.6
- },
- {
-  "wait": 3.2
- },
- {
-  "expect": "!!document.querySelector('#bubble .b-step')",
-  "name": "펫을 두드린 뒤 안내로 돌아옴"
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'') && s.hatched===true && typeof s.name==='string' && s.name.endsWith('Mo')",
+  "name": "이름을 지은 직후 저장: LV1 · 0 EXP · 끝낸 미션 없음"
  },
  {
   "native": {
@@ -101,102 +56,367 @@
   }
  },
  {
-  "wait": 1.0
+  "native": {
+   "type": "mission",
+   "id": "screenshot"
+  }
  },
  {
-  "expect": "document.querySelector('#bubble').textContent.includes('성공')",
-  "name": "미션 성공 문구"
+  "native": {
+   "type": "mission",
+   "id": "shortcut-quit"
+  }
  },
  {
-  "wait": 9.5
- },
- {
-  "expect": "!!document.querySelector('#bubble .b-go') && document.querySelector('#bubble').textContent.includes('스크린샷')",
-  "name": "연출 뒤 다음 미션(스크린샷)을 권함"
- },
- {
-  "tap": "#bubble .b-later"
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
  },
  {
   "wait": 0.4
  },
  {
-  "expect": "document.querySelector('#bubble').hidden",
+  "expect": "window.missionQA.isOffering('Spotlight') && !window.missionQA.hasEvidenceConfirmation() && window.missionQA.currentMission() === null && !window.missionQA.bubbleText().includes('성공')",
+  "name": "시작하기 전에 온 여러 미션 신호(⌘Q·스크린샷·권한 포함)는 권하는 말풍선을 바꾸지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'') && !!s.guide && s.guide.id==='spotlight-calc' && s.guide.step===-1",
+  "name": "시작 전 신호와 권하기만으로는 경험치·완료 기록이 그대로 (step:-1)"
+ },
+ {
+  "tap": "#bubble .b-go"
+ },
+ {
+  "until": "window.missionQA.isGuideStepVisible('Spotlight', 1) && window.missionQA.currentMission() === 'spotlight-calc' && !window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "알려 줘 → 안내 1단계, 고른 미션만 지켜봄, 권하는 동안 온 신호는 넘어오지 않음"
+ },
+ {
+  "tap": "#bubble .b-next"
+ },
+ {
+  "until": "window.missionQA.isGuideStepVisible('Spotlight', 2)",
+  "timeout": 3,
+  "name": "다음 → 2단계"
+ },
+ {
+  "tap": "#bubble .b-prev"
+ },
+ {
+  "until": "window.missionQA.isGuideStepVisible('Spotlight', 1) && window.missionQA.currentMission() === 'spotlight-calc'",
+  "timeout": 3,
+  "name": "이전 → 1단계 (지켜보기는 그대로)"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "screenshot"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc",
+   "attempt": -1
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "!window.missionQA.hasEvidenceConfirmation() && window.missionQA.isGuideStepVisible('Spotlight', 1)",
+  "name": "다른 미션의 신호와 지난 시도(attempt:-1)의 신호는 버려짐"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "버려진 신호 뒤에도 저장 그대로"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc"
+  }
+ },
+ {
+  "until": "window.missionQA.hasEvidenceConfirmation() && window.missionQA.buttonText('#bubble .b-confirm-evidence') === '내가 했어요'",
+  "timeout": 3,
+  "name": "지켜보는 미션의 신호가 오면 '내가 했어요' 확인 단추가 뜸"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc"
+  }
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "확인을 기다리는 신호(반복 포함)만으로는 경험치 없음"
+ },
+ {
+  "tap": "#bubble .b-x"
+ },
+ {
+  "until": "!window.missionQA.isBubbleVisible() && window.missionQA.currentMission() === null",
+  "timeout": 3,
+  "name": "안내 × → 닫히고 지켜보기도 끝남"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc"
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "!window.missionQA.isBubbleVisible() && !window.missionQA.hasEvidenceConfirmation()",
+  "name": "그만둔 뒤에 온 신호는 아무것도 띄우지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "그만두면 기다리던 신호가 버려져 경험치 없음"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "until": "window.missionQA.isCardOpen() && !!document.querySelector('.m-item.is-open[data-mission-id=spotlight-calc] .m-go')",
+  "timeout": 3,
+  "name": "이름표 → 미션 카드 열림 (첫 미션이 펼쳐짐)"
+ },
+ {
+  "expect": "window.missionQA.buttonText('.m-item.is-open .m-go') === '같이 하기'",
+  "name": "펼친 미션에 '같이 하기'가 있음"
+ },
+ {
+  "tap": ".m-item.is-open .m-go"
+ },
+ {
+  "until": "!window.missionQA.isCardOpen() && window.missionQA.isGuideStepVisible('Spotlight', 1) && window.missionQA.currentMission() === 'spotlight-calc' && !window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "같이 하기 → 카드 닫히고 새 시도로 안내 시작 (앞서 버린 신호는 되살아나지 않음)"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc"
+  }
+ },
+ {
+  "until": "window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "새 시도에서 온 신호 → 확인 단추"
+ },
+ {
+  "tap": "#bubble .b-confirm-evidence"
+ },
+ {
+  "until": "window.missionQA.bubbleText().includes('Spotlight로 계산기 열기 성공')",
+  "timeout": 5,
+  "name": "'내가 했어요' → 미션 성공 문구"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,5,'spotlight-calc') && typeof s.done['spotlight-calc']==='string'",
+  "name": "확인을 누른 뒤에만 +30 EXP (LV2 · 5) 와 완료 기록"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc",
+   "attempt": 1
+  }
+ },
+ {
+  "until": "window.missionQA.isOffering('스크린샷')",
+  "timeout": 20,
+  "name": "연출 뒤 다음 미션(스크린샷)을 권함"
+ },
+ {
+  "expect": "window.missionQA.currentMission() === null && window.missionQA.chipText().includes('LV2')",
+  "name": "미션이 끝나면 지켜보기도 끝나고, 다음 미션은 권하기만 함"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,5,'spotlight-calc')",
+  "name": "끝난 미션에 다시 온 신호와 새 권하기는 경험치를 더하지 않음"
+ },
+ {
+  "tap": "#bubble .b-later"
+ },
+ {
+  "until": "!window.missionQA.isBubbleVisible()",
+  "timeout": 3,
   "name": "나중에 → 말풍선 닫힘"
  },
  {
   "tap": "#chip"
  },
  {
-  "wait": 0.6
+  "until": "window.missionQA.isCardOpen() && !!document.querySelector('.m-item.is-open[data-mission-id=screenshot] .m-go')",
+  "timeout": 3,
+  "name": "이름표 → 미션 카드 열림 (다음 미션이 펼쳐짐)"
  },
  {
-  "expect": "!document.querySelector('#card').hidden",
-  "name": "이름표 → 미션 카드 열림"
+  "tap": ".m-item.is-open .m-go"
  },
  {
-  "tap": ".m-detail .m-go"
+  "until": "!window.missionQA.isCardOpen() && window.missionQA.isGuideStepVisible('스크린샷', 1) && window.missionQA.currentMission() === 'screenshot'",
+  "timeout": 3,
+  "name": "같이 하기 → 카드 닫히고 고른 미션(스크린샷)만 지켜봄"
  },
  {
-  "wait": 0.5
+  "native": {
+   "type": "mission",
+   "id": "screenshot"
+  }
  },
  {
-  "expect": "document.querySelector('#card').hidden && !!document.querySelector('#bubble .b-step')",
-  "name": "같이 하기 → 카드 닫히고 안내 시작"
+  "until": "window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "스크린샷 신호 → 확인 단추"
  },
  {
-  "tap": "#bubble .b-x"
+  "panelVisible": false
+ },
+ {
+  "until": "nativeVisible === false && window.missionQA.currentMission() === null",
+  "timeout": 5,
+  "name": "펫을 숨기면 지켜보기가 끝남"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "screenshot"
+  }
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "until": "nativeVisible === true && !document.hidden && window.missionQA.buttonText('#bubble .b-resume') === '안내 계속하기' && !window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 5,
+  "name": "다시 보이면 기다리던 신호는 사라지고 '안내 계속하기'만 남음"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "screenshot"
+  }
  },
  {
   "wait": 0.4
  },
  {
-  "expect": "document.querySelector('#bubble').hidden",
+  "expect": "!window.missionQA.hasEvidenceConfirmation() && window.missionQA.currentMission() === null",
+  "name": "다시 보인 뒤에도 직접 이어 가기 전에는 신호를 받지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,5,'spotlight-calc')",
+  "name": "숨김·다시 보임을 거친 신호로는 경험치 없음"
+ },
+ {
+  "tap": "#bubble .b-resume"
+ },
+ {
+  "until": "window.missionQA.currentMission() === 'screenshot' && !document.querySelector('#bubble .b-resume') && !window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "안내 계속하기 → 새 시도로 다시 지켜봄 (지난 신호는 되살아나지 않음)"
+ },
+ {
+  "tap": "#bubble .b-x"
+ },
+ {
+  "until": "!window.missionQA.isBubbleVisible() && window.missionQA.currentMission() === null",
+  "timeout": 3,
   "name": "안내 × → 닫힘"
  },
  {
   "tap": "#chip"
  },
  {
-  "wait": 0.6
+  "until": "window.missionQA.isCardOpen() && !!document.querySelector('.m-skip')",
+  "timeout": 3,
+  "name": "이름표 → 미션 카드 열림"
  },
  {
   "tap": ".m-skip"
  },
  {
-  "wait": 0.4
+  "until": "!!document.querySelector('.m-yes')",
+  "timeout": 3,
+  "name": "반응이 없어요 → 확인 줄"
  },
  {
-  "expect": "!!document.querySelector('.m-yes')",
-  "name": "반응이 없어요 → 확인 줄"
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,5,'spotlight-calc')",
+  "name": "확인 줄이 뜬 것만으로는 경험치 없음"
  },
  {
   "tap": ".m-yes"
  },
  {
-  "wait": 1.0
- },
- {
-  "expect": "document.querySelector('#bubble').textContent.includes('성공')",
+  "until": "window.missionQA.bubbleText().includes('스크린샷 찍기 성공')",
+  "timeout": 5,
   "name": "직접 완료 → 성공 문구"
  },
  {
-  "wait": 9.5
+  "expectSave": "window.missionQA.verifySavedProgress(s,3,5,'screenshot,spotlight-calc') && s.manual && s.manual.screenshot===true",
+  "name": "직접 완료: +30 EXP (LV3 · 5), 수동 완료로 기록"
+ },
+ {
+  "until": "window.missionQA.isOffering('복사')",
+  "timeout": 20,
+  "name": "연출 뒤 다음 미션(복사)을 권함"
+ },
+ {
+  "tap": "#bubble .b-go"
+ },
+ {
+  "until": "window.missionQA.isGuideStepVisible('복사', 1) && window.missionQA.currentMission() === 'copy'",
+  "timeout": 3,
+  "name": "알려 줘 → 복사 안내 1단계"
+ },
+ {
+  "tap": "#cv"
+ },
+ {
+  "until": "!document.querySelector('#bubble .b-step')",
+  "timeout": 3,
+  "name": "펫을 두드리면 한마디가 잠깐 뜸"
+ },
+ {
+  "until": "window.missionQA.isGuideStepVisible('복사', 1)",
+  "timeout": 8,
+  "name": "펫을 두드린 뒤 안내로 돌아옴"
+ },
+ {
+  "expect": "window.missionQA.currentMission() === 'copy' && !window.missionQA.hasEvidenceConfirmation()",
+  "name": "두드려도 지켜보기는 그대로이고 확인 단추는 생기지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,3,7,'screenshot,spotlight-calc')",
+  "name": "펫 두드리기 +2 EXP 만 더해지고 미션 기록은 그대로"
  },
  {
   "tap": "#chip"
  },
  {
-  "wait": 0.6
+  "until": "window.missionQA.isCardOpen()",
+  "timeout": 3,
+  "name": "안내 중에도 이름표로 카드를 열 수 있음"
  },
  {
   "tap": ".card-x"
  },
  {
-  "wait": 0.4
- },
- {
-  "expect": "document.querySelector('#card').hidden",
+  "until": "!window.missionQA.isCardOpen()",
+  "timeout": 3,
   "name": "카드 × → 닫힘"
  }
 ]

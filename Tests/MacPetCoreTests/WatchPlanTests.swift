@@ -16,79 +16,195 @@ final class WatchPlanTests: XCTestCase {
         m("odd", .unknown("future")),
     ]
 
+    private let ok = SaveProgress(hatched: true, named: true, done: [])
+
+    /// 준비됨 + 보임 + 주어진 진행
+    private func live(_ p: SaveProgress?) -> WatchEnrollment {
+        var e = WatchEnrollment(missions: missions)
+        e.setReady(true)
+        e.setVisible(true)
+        e.setProgress(p)
+        return e
+    }
+    private func reg(_ id: String, _ attempt: Int) -> WatchRegistration { .init(id: id, attempt: attempt) }
+
     func testProgressParsing() {
-        let p = SaveProgress(state: ["v": 2, "hatched": true,
+        let p = SaveProgress(state: ["v": 2, "hatched": true, "name": "모찌",
                                      "done": ["a": "2026-01-01T00:00:00Z", "b": "", "c": true, "d": false, "e": 0, "f": 1, "g": NSNull()]])
-        XCTAssertEqual(p, SaveProgress(hatched: true, done: ["a", "c", "f"]))
+        XCTAssertEqual(p, SaveProgress(hatched: true, named: true, done: ["a", "c", "f"]))
         XCTAssertEqual(SaveProgress(state: ["hatched": 1])?.hatched, false) // 불리언 true 만 부화
         XCTAssertEqual(SaveProgress(state: ["hatched": "true"])?.hatched, false)
-        XCTAssertEqual(SaveProgress(state: [:]), SaveProgress(hatched: false, done: []))
+        XCTAssertEqual(SaveProgress(state: ["name": ""])?.named, false)
+        XCTAssertEqual(SaveProgress(state: ["name": "  "])?.named, false)
+        XCTAssertEqual(SaveProgress(state: ["name": 3])?.named, false)
+        XCTAssertEqual(SaveProgress(state: [:]), SaveProgress(hatched: false, named: false, done: []))
         XCTAssertNil(SaveProgress(state: "x"))
         XCTAssertNil(SaveProgress(state: nil))
     }
 
-    func testEggWatchesNothing() {
-        XCTAssertTrue(makeWatchPlan(missions: missions, progress: .init(hatched: false, done: [])).isEmpty)
+    func testProgressIgnoresGuide() {
+        // 저장에 남은 안내(권하기만 했거나 지난 실행의 것)는 등록이 아니다
+        let state: [String: Any] = ["hatched": true, "name": "모찌", "done": [String: Any](), "guide": ["id": "copy", "step": 2]]
+        var e = live(SaveProgress(state: state))
+        XCTAssertNil(e.current)
+        e.setProgress(SaveProgress(state: state))
+        XCTAssertNil(e.current)
     }
 
-    func testHatchedGroupsUnfinishedByFamilySkippingManualAndUnknown() {
-        let plan = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: ["copy2"]))
-        XCTAssertEqual(plan[.clipboard], ["copy"])
-        XCTAssertEqual(plan[.screenshot], ["shot"])
-        XCTAssertEqual(plan[.permission], ["perm"])
-        XCTAssertEqual(Set(plan.keys), [.clipboard, .screenshot, .permission, .shortcut, .defaults])
-    }
-
-    func testAllDoneWatchesNothing() {
-        let all = Set(missions.map(\.id))
-        XCTAssertTrue(makeWatchPlan(missions: missions, progress: .init(hatched: true, done: all)).isEmpty)
-    }
-
-    func testXPOnlySaveChangesNothing() {
-        let p = SaveProgress(hatched: true, done: ["shot"])
-        let plan = makeWatchPlan(missions: missions, progress: p)
-        XCTAssertTrue(diffWatchPlan(running: plan, desired: makeWatchPlan(missions: missions, progress: p)).isEmpty)
-    }
-
-    func testFinishingUnrelatedMissionDoesNotTouchOtherFamilies() {
-        let before = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: []))
-        let after = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: ["shot"]))
-        let d = diffWatchPlan(running: before, desired: after)
-        XCTAssertEqual(d.count, 1)
-        XCTAssertEqual(d[0].family, .screenshot)
-        XCTAssertEqual(d[0].action, .stop)
-    }
-
-    func testPartialFinishInFamilyRetargetsWithoutRestart() {
-        let before = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: []))
-        let after = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: ["copy"]))
-        let d = diffWatchPlan(running: before, desired: after)
-        XCTAssertEqual(d.map(\.family), [.clipboard])
-        XCTAssertEqual(d.map(\.action), [.retarget])
-    }
-
-    func testResetStopsEverythingThenHatchStartsEverything() {
-        let full = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: []))
-        var running: WatchPlan = [:]
-        for _ in 0..<3 { // 반복 초기화
-            let start = diffWatchPlan(running: running, desired: full)
-            XCTAssertEqual(Set(start.map(\.family)), Set(full.keys))
-            XCTAssertTrue(start.allSatisfy { $0.action == .start })
-            running = full
-            let egg = makeWatchPlan(missions: missions, progress: .init(hatched: false, done: []))
-            let stop = diffWatchPlan(running: running, desired: egg)
-            XCTAssertEqual(Set(stop.map(\.family)), Set(full.keys))
-            XCTAssertTrue(stop.allSatisfy { $0.action == .stop })
-            running = egg
+    func testRegistrationMessageParsing() {
+        XCTAssertEqual(WatchRegistration(message: ["type": "watchMission", "id": "copy", "attempt": 3]), reg("copy", 3))
+        XCTAssertEqual(WatchRegistration(message: ["id": "copy", "attempt": 2.0]), reg("copy", 2))
+        XCTAssertNil(WatchRegistration(message: ["type": "watchMission", "id": NSNull()])) // 그만 보기
+        XCTAssertNil(WatchRegistration(message: ["id": NSNull(), "attempt": 3]))
+        XCTAssertNil(WatchRegistration(message: ["id": "copy"]))
+        XCTAssertNil(WatchRegistration(message: ["id": "", "attempt": 1]))
+        for bad: Any in [0, -1, 1.5, true, "1", NSNull(), Double.nan, Double.infinity, 1e300] {
+            XCTAssertNil(WatchRegistration(message: ["id": "copy", "attempt": bad]), "\(bad)")
         }
     }
 
-    func testResetWhileRunningRestartsFamiliesGainingIDs() {
-        let some = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: ["copy"]))
-        let full = makeWatchPlan(missions: missions, progress: .init(hatched: true, done: []))
-        let d = diffWatchPlan(running: some, desired: full)
-        XCTAssertTrue(d.contains { $0.family == .clipboard && $0.action == .restart })
-        XCTAssertTrue(d.contains { $0.family == .screenshot && $0.action == .start } == false) // 이미 돌고 있다
+    func testPermissionManualUnknownHaveNoNativeDetector() {
+        XCTAssertNil(watchFamily(of: .accessibilityPermission)) // 이미 허용돼 있다는 것만으로 완료를 알리지 않는다
+        XCTAssertNil(watchFamily(of: .manual))
+        XCTAssertNil(watchFamily(of: .unknown("future")))
+        XCTAssertEqual(watchFamily(of: .clipboardChange), .clipboard)
+        XCTAssertEqual(watchFamily(of: .shortcut(keys: "cmd+tab")), .shortcut)
+    }
+
+    func testArmsOnlyTheRequestedMission() {
+        var e = live(ok)
+        XCTAssertNil(e.current) // 등록 전에는 아무것도 걸리지 않는다
+        e.request(reg("copy", 1))
+        XCTAssertEqual(e.current?.mission.id, "copy")
+        XCTAssertEqual(e.current?.mission.trigger, .clipboardChange)
+        XCTAssertEqual(e.current?.attempt, 1)
+        // 다른 미션으로 바꾸면 그 하나만 남는다(같은 종류의 copy2, 단축키 tab 은 대상이 아니다)
+        e.request(reg("tab", 2))
+        XCTAssertEqual(e.current?.registration, reg("tab", 2))
+        XCTAssertEqual(e.current?.mission.trigger, .shortcut(keys: "cmd+tab"))
+    }
+
+    func testRearmingSameIDIsAFreshArming() {
+        var e = live(ok)
+        e.request(reg("copy", 1))
+        let first = e.current
+        e.request(reg("copy", 2))
+        let second = e.current
+        XCTAssertNotEqual(first?.serial, second?.serial)
+        XCTAssertEqual(second?.attempt, 2)
+        // 번호까지 같아도(웹이 같은 값을 다시 보내도) 앞선 것과 같은 감시로 치지 않는다
+        e.request(reg("copy", 2))
+        XCTAssertNotEqual(e.current?.serial, second?.serial)
+        // A → 해제 → A: 앞선 A 의 serial 로 돌아가지 않는다
+        e.request(nil)
+        XCTAssertNil(e.current)
+        e.request(reg("copy", 3))
+        XCTAssertFalse([first?.serial, second?.serial].contains(e.current?.serial))
+    }
+
+    func testRejectsEggUnnamedDoneUnknownAndMissing() {
+        var egg = live(SaveProgress(hatched: false, named: false, done: []))
+        egg.request(reg("copy", 1)); XCTAssertNil(egg.current)
+        var unnamed = live(SaveProgress(hatched: true, named: false, done: []))
+        unnamed.request(reg("copy", 1)); XCTAssertNil(unnamed.current)
+        var done = live(SaveProgress(hatched: true, named: true, done: ["copy"]))
+        done.request(reg("copy", 1)); XCTAssertNil(done.current)
+        done.request(reg("copy2", 1)); XCTAssertEqual(done.current?.mission.id, "copy2")
+        var e = live(ok)
+        e.request(reg("odd", 1)); XCTAssertNil(e.current) // 모르는(앞으로 생길) 트리거
+        e.request(reg("nope", 1)); XCTAssertNil(e.current) // 카탈로그에 없는 id
+        var noSave = live(nil) // 읽기 전용(보호) 저장이거나 진행을 모름
+        noSave.request(reg("copy", 1)); XCTAssertNil(noSave.current)
+    }
+
+    func testRejectedRequestAlsoDropsPreviousRegistration() {
+        var e = live(ok)
+        e.request(reg("copy", 1))
+        e.request(reg("odd", 2))
+        XCTAssertNil(e.current)
+    }
+
+    func testRejectsWhenHiddenOrNotReady() {
+        var hidden = WatchEnrollment(missions: missions)
+        hidden.setReady(true); hidden.setProgress(ok)
+        hidden.request(reg("copy", 1)); XCTAssertNil(hidden.current)
+        var notReady = WatchEnrollment(missions: missions)
+        notReady.setVisible(true); notReady.setProgress(ok)
+        notReady.request(reg("copy", 1)); XCTAssertNil(notReady.current)
+    }
+
+    func testHideDisarmsAndShowDoesNotRearm() {
+        var e = live(ok)
+        e.request(reg("copy", 1))
+        let serial = e.current?.serial
+        e.setVisible(false)
+        XCTAssertNil(e.current)
+        e.setVisible(true)
+        XCTAssertNil(e.current) // 웹이 새로 등록해야 한다
+        e.request(reg("copy", 2))
+        XCTAssertEqual(e.current?.attempt, 2)
+        XCTAssertNotEqual(e.current?.serial, serial)
+    }
+
+    func testReloadDisarmsUntilFreshRequest() {
+        var e = live(ok)
+        e.request(reg("copy", 1))
+        e.setReady(false)
+        XCTAssertNil(e.current)
+        e.setReady(true)
+        XCTAssertNil(e.current)
+        var again = live(ok)
+        again.request(reg("copy", 1))
+        again.setReady(true) // 새 화면의 ready 만 와도 앞선 등록은 버린다
+        XCTAssertNil(again.current)
+    }
+
+    func testOrdinarySaveKeepsSameArmingWhileEligible() {
+        var e = live(ok)
+        e.request(reg("copy", 4))
+        let before = e.current
+        e.setProgress(SaveProgress(hatched: true, named: true, done: ["shot"])) // XP·다른 미션 완료
+        XCTAssertEqual(e.current, before) // serial 그대로 = 감지기·기준값을 건드리지 않는다
+    }
+
+    func testSaveThatEndsEligibilityDisarmsForGood() {
+        for p: SaveProgress? in [SaveProgress(hatched: true, named: true, done: ["copy"]), // 끝냄
+                                 SaveProgress(hatched: false, named: false, done: []),      // 초기화·졸업
+                                 SaveProgress(hatched: true, named: false, done: []),
+                                 nil] {                                                     // 보호로 넘어감
+            var e = live(ok)
+            e.request(reg("copy", 1))
+            e.setProgress(p)
+            XCTAssertNil(e.current)
+            e.setProgress(ok) // 자격이 돌아와도 스스로 다시 걸리지 않는다
+            XCTAssertNil(e.current)
+        }
+    }
+
+    func testManualAndPermissionRegisterWithoutDetector() {
+        // 등록(attempt)은 기억하지만 네이티브 감지기는 없다
+        var e = live(ok)
+        e.request(reg("perm", 1))
+        XCTAssertEqual(e.current?.registration, reg("perm", 1))
+        XCTAssertNil(e.current.flatMap { watchFamily(of: $0.mission.trigger) })
+        e.request(reg("calc", 2))
+        XCTAssertEqual(e.current?.registration, reg("calc", 2))
+        XCTAssertNil(e.current.flatMap { watchFamily(of: $0.mission.trigger) })
+    }
+
+    func testInjectedMissionDecoration() {
+        let r = reg("copy", 7)
+        func attempt(_ ev: [String: Any], _ r: WatchRegistration?) -> Int? {
+            (decorateInjectedMission(ev, registration: r)["attempt"] as? NSNumber)?.intValue
+        }
+        XCTAssertEqual(attempt(["type": "mission", "id": "copy"], r), 7)
+        XCTAssertEqual(attempt(["type": "mission", "id": "copy", "attempt": 3], r), 3) // 적은 번호(지난 것 포함)는 그대로
+        XCTAssertNil(attempt(["type": "mission", "id": "shot"], r)) // 다른 미션
+        XCTAssertNil(attempt(["type": "mission", "id": "copy"], nil)) // 등록 없음
+        XCTAssertNil(attempt(["type": "command", "id": "copy", "name": "x"], r)) // 다른 종류
+        let explicitNull = decorateInjectedMission(["type": "mission", "id": "copy", "attempt": NSNull()], registration: r)
+        XCTAssertTrue(explicitNull["attempt"] is NSNull)
+        XCTAssertEqual(decorateInjectedMission(["type": "mission", "id": "copy"], registration: r).count, 3)
     }
 
     func testBundledURLPolicy() {

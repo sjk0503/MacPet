@@ -6,20 +6,26 @@
   }
  },
  {
-  "wait": 1.2
- },
- {
-  "expect": "document.querySelector('#chip').textContent.trim()==='알' && !document.querySelector('#bubble input')",
+  "until": "window.missionQA.chipText()==='알' && !document.querySelector('#bubble input')",
+  "timeout": 5,
   "name": "처음 알에서 시작"
  },
  {
-  "eval": "(function(){const c=document.querySelector('#cv');c.click();c.click();c.click();window.MacPet.onNative({type:'command',name:'reset'});return true})()"
+  "tap": "#cv",
+  "count": 3,
+  "gap": 0.05
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "reset"
+  }
  },
  {
   "wait": 1.6
  },
  {
-  "expect": "!document.querySelector('#bubble input') && document.querySelector('#chip').textContent.trim()==='알'",
+  "expect": "window.missionQA.chipText()==='알' && !document.querySelector('#bubble input')",
   "name": "세 번째 탭 직후 초기화해도 420ms 부화 타이머가 이름 칸을 열지 않고 알이 남음"
  },
  {
@@ -36,17 +42,15 @@
   }
  },
  {
-  "native": {
-   "type": "mission",
-   "id": "grant-accessibility"
-  }
- },
- {
   "wait": 0.5
  },
  {
-  "expect": "document.querySelector('#chip').textContent.trim()==='알' && !document.querySelector('#bubble input')",
-  "name": "부화 전 권한 허용과 중복 미션 신호가 알을 부화시키지 않음"
+  "expect": "window.missionQA.chipText()==='알' && !document.querySelector('#bubble input')",
+  "name": "부화 전 권한 허용과 미션 신호가 알을 부화시키지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,0,0,'') && s.hatched===false",
+  "name": "부화 전 신호 뒤에도 저장은 알 그대로"
  },
  {
   "tap": "#cv",
@@ -54,10 +58,8 @@
   "gap": 0.7
  },
  {
-  "wait": 2.4
- },
- {
-  "expect": "!!document.querySelector('#bubble input')",
+  "until": "!!document.querySelector('#bubble input')",
+  "timeout": 8,
   "name": "실제 탭 세 번으로 다시 부화 → 이름 칸"
  },
  {
@@ -67,36 +69,21 @@
   "type": "Mo"
  },
  {
+  "until": "document.querySelector('#bubble input').value.endsWith('Mo')",
+  "timeout": 3,
+  "name": "이름 칸에 키 입력이 들어감"
+ },
+ {
   "tap": "#bubble form button"
  },
  {
-  "wait": 1.5
+  "until": "window.missionQA.isOffering('Spotlight') && window.missionQA.chipText().includes('LV1')",
+  "timeout": 12,
+  "name": "이름을 지어 펫이 되고 첫 미션을 권할 뿐"
  },
  {
-  "expect": "!document.querySelector('#bubble input') && document.querySelector('#chip').textContent.includes('LV')",
-  "name": "이름을 지어 펫이 됨"
- },
- {
-  "native": {
-   "type": "command",
-   "name": "showMissions"
-  }
- },
- {
-  "native": {
-   "type": "command",
-   "name": "showMissions"
-  }
- },
- {
-  "wait": 0.4
- },
- {
-  "eval": "(function(){window.__qaRow=()=>Array.from(document.querySelectorAll('.m-item')).find(i=>{const t=i.querySelector('.t').textContent;return t.includes('손쉬운 사용')&&t.includes('권한 주기')});return true})()"
- },
- {
-  "expect": "(function(){const r=window.__qaRow();return !!r&&r.classList.contains('is-done')&&r.querySelector('.tag').textContent==='✓ 완료'&&document.querySelector('.card-hd .sub').textContent.includes('LV 2')&&document.querySelector('.wpet-bar').getAttribute('aria-label')==='경험치 15 / 30'})()",
-  "name": "이름을 지은 직후 기존 신뢰로 권한 미션이 이미 완료되고 40 EXP 가 한 번만 반영됨(LV 2, 15/30)"
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "예전에 허용해 둔 권한이 있어도 이름을 짓는 순간 +40 EXP 를 주지 않음"
  },
  {
   "native": {
@@ -112,17 +99,218 @@
   }
  },
  {
+  "wait": 0.4
+ },
+ {
+  "expect": "window.missionQA.isOffering('Spotlight') && window.missionQA.currentMission() === null && !window.missionQA.bubbleText().includes('성공')",
+  "name": "이름을 지은 뒤 온 권한·미션 신호도 권하는 말풍선을 바꾸지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "등록 없이 온 신호로는 경험치·완료 기록 그대로"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "until": "window.missionQA.isCardOpen()",
+  "timeout": 3,
+  "name": "이름표 → 미션 카드 열림"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item[data-mission-id=grant-accessibility] .m-row')"
+ },
+ {
+  "expect": "window.missionQA.missionTag('grant-accessibility') === '+40 EXP' && window.missionQA.missionTag('shortcut-app-switch').includes('EXP')",
+  "name": "권한이 이미 켜져 있어도 권한 미션은 아직 안 끝난 상태 (단축키 미션은 풀려 있음)"
+ },
+ {
+  "tap": ".m-item[data-mission-id=grant-accessibility] .m-row"
+ },
+ {
+  "until": "window.missionQA.buttonText('.m-item.is-open[data-mission-id=grant-accessibility] .m-permission') === '허용 상태 확인'",
+  "timeout": 3,
+  "name": "권한 미션 줄을 펼치면 '허용 상태 확인'"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item.is-open .m-go:not(.m-permission)')"
+ },
+ {
+  "tap": ".m-item.is-open .m-go:not(.m-permission)"
+ },
+ {
+  "until": "!window.missionQA.isCardOpen() && window.missionQA.isGuideStepVisible('권한 주기', 1) && window.missionQA.currentMission() === 'grant-accessibility' && window.missionQA.buttonText('#bubble .b-permission') === '허용 상태 확인'",
+  "timeout": 3,
+  "name": "같이 하기 → 권한 미션 안내, 말풍선에 '허용 상태 확인'"
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": true
+  }
+ },
+ {
   "native": {
    "type": "mission",
    "id": "grant-accessibility"
   }
  },
  {
+  "wait": 0.4
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "이미 켜진 권한은 안내를 시작해도, 같은 신호가 다시 와도 저절로 인정되지 않음"
+ },
+ {
+  "tap": "#bubble .b-permission"
+ },
+ {
+  "until": "window.missionQA.bubbleText().includes('권한 주기 성공')",
+  "timeout": 5,
+  "name": "말풍선의 '허용 상태 확인' → 권한 미션 성공"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,15,'grant-accessibility')",
+  "name": "직접 확인한 뒤에만 +40 EXP 한 번 (LV2 · 15)"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "reset"
+  }
+ },
+ {
+  "until": "window.missionQA.chipText()==='알' && !document.querySelector('#bubble input') && window.missionQA.bubbleText().includes('알이 도착')",
+  "timeout": 5,
+  "name": "다시 처음부터 (권한은 켜진 채)"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,0,0,'') && s.hatched===false",
+  "name": "초기화 뒤 저장은 새 알"
+ },
+ {
+  "tap": "#cv",
+  "count": 3,
+  "gap": 0.7
+ },
+ {
+  "until": "!!document.querySelector('#bubble input')",
+  "timeout": 8,
+  "name": "두 번째 알도 실제 탭 세 번으로 부화 → 이름 칸"
+ },
+ {
+  "tap": "#bubble input"
+ },
+ {
+  "type": "Mo"
+ },
+ {
+  "until": "document.querySelector('#bubble input').value.endsWith('Mo')",
+  "timeout": 3,
+  "name": "이름 칸에 키 입력이 들어감"
+ },
+ {
+  "tap": "#bubble form button"
+ },
+ {
+  "until": "window.missionQA.isOffering('Spotlight')",
+  "timeout": 12,
+  "name": "두 번째 펫도 이름을 지으면 첫 미션을 권할 뿐"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,1,0,'')",
+  "name": "두 번째 펫도 이름을 짓는 순간 +40 EXP 를 받지 않음"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "until": "window.missionQA.isCardOpen()",
+  "timeout": 3,
+  "name": "showMissions 두 번 → 카드가 열린 채"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item[data-mission-id=grant-accessibility] .m-row')"
+ },
+ {
+  "tap": ".m-item[data-mission-id=grant-accessibility] .m-row"
+ },
+ {
+  "until": "window.missionQA.buttonText('.m-item.is-open[data-mission-id=grant-accessibility] .m-permission') === '허용 상태 확인'",
+  "timeout": 3,
+  "name": "고른 권한 미션 줄에 '허용 상태 확인'"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item.is-open .m-permission')"
+ },
+ {
+  "tap": ".m-item.is-open .m-permission"
+ },
+ {
+  "until": "window.missionQA.bubbleText().includes('권한 주기 성공')",
+  "timeout": 5,
+  "name": "카드의 '허용 상태 확인' → 권한 미션 성공"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,15,'grant-accessibility')",
+  "name": "카드에서 직접 확인한 뒤에만 +40 EXP 한 번 (LV2 · 15)"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": true
+  }
+ },
+ {
   "wait": 0.3
  },
  {
-  "expect": "(function(){const r=window.__qaRow();return !!r&&r.classList.contains('is-done')&&r.querySelector('.tag').textContent==='✓ 완료'&&document.querySelector('.card-hd .sub').textContent.includes('LV 2')&&document.querySelector('.wpet-bar').getAttribute('aria-label')==='경험치 15 / 30'})()",
-  "name": "이후 중복 권한·미션 신호에도 완료 상태와 EXP 가 그대로"
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "until": "window.missionQA.isCardOpen()",
+  "timeout": 3,
+  "name": "showMissions → 카드 열림"
+ },
+ {
+  "expect": "(function(){const r=window.missionQA.missionRow('grant-accessibility');return !!r&&r.classList.contains('is-done')&&r.querySelector('.tag').textContent==='✓ 완료'&&document.querySelector('.card-hd .sub').textContent.includes('LV 2')&&document.querySelector('.wpet-bar').getAttribute('aria-label')==='경험치 15 / 30'})()",
+  "name": "이후 중복 권한·미션 신호에도 완료 상태와 EXP 가 그대로 (LV 2, 15/30)"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,2,15,'grant-accessibility')",
+  "name": "중복 신호 뒤 저장도 그대로"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item[data-mission-id=grant-accessibility] .m-row')"
+ },
+ {
+  "tap": ".m-item[data-mission-id=grant-accessibility] .m-row"
+ },
+ {
+  "until": "!!document.querySelector('.m-item.is-open[data-mission-id=grant-accessibility]') && !document.querySelector('#card .m-permission')",
+  "timeout": 3,
+  "name": "끝낸 권한 미션에는 확인 단추가 다시 나오지 않음"
  },
  {
   "native": {
@@ -134,7 +322,7 @@
   "wait": 0.3
  },
  {
-  "expect": "!document.querySelector('#card').hidden",
+  "expect": "window.missionQA.isCardOpen()",
   "name": "완료 뒤 showMissions 도 카드를 닫지 않음"
  },
  {
@@ -144,10 +332,8 @@
   }
  },
  {
-  "wait": 0.4
- },
- {
-  "expect": "document.querySelector('#card').hidden",
+  "until": "!window.missionQA.isCardOpen()",
+  "timeout": 3,
   "name": "예전 toggleMissions 는 열린 카드를 닫음"
  }
 ]

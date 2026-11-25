@@ -1,87 +1,54 @@
 import AppKit
 import MacPetCore
 
-/// 미션 조건을 감지해 매번 onFire(id) 호출. 전부 메인 스레드.
-/// 저장 진행(apply)에 따라 "아직 안 끝난 미션이 있는 트리거 묶음"만 켠다. 창이 숨겨진 동안에도 계속 돈다.
-/// 손쉬운 사용 권한 상태 알림(AccessibilityAccess → 웹)은 PetPanelController 가 따로 지키므로 여기서 끄지 않는다.
+/// 웹이 등록한 미션 하나의 조건을 감지해 onFire 를 부른다. 전부 메인 스레드.
+/// 등록(시도) 한 번에 인스턴스 하나: 만들 때 그 미션의 감지기 하나만 켜고 기준값(클립보드 횟수·설정값 등)을 그 순간 새로 잡는다.
+/// 같은 미션을 다시 등록해도 새 인스턴스를 만들므로 앞선 시도의 기준값·늦은 알림이 넘어오지 않는다.
+/// 손쉬운 사용 권한 상태 알림(AccessibilityAccess → 웹)은 PetPanelController 가 따로 지키며, 여기서는 권한 미션을 감지하지 않는다.
 final class MissionWatcher {
-    private let missions: [Mission]
-    private let onFire: (String) -> Void
-    /// 묶음별로 돌고 있는 감시와 그 대상 id. 불이 나는 시점에 이 값을 읽으므로 재시작 없이 대상만 줄일 수 있다.
-    private var running: WatchPlan = [:]
-    /// 묶음별 자원 정리. 묶음 하나가 쓴 것만 돌려준다.
-    private var teardowns: [WatchFamily: () -> Void] = [:]
-    private var defaultsSnapshots: [String: [String: String?]] = [:]
+    private let mission: Mission
+    private let onFire: () -> Void
+    private var armed = false
+    private var teardown: (() -> Void)?
     var logFileEvents = false
 
-    init(missions: [Mission], onFire: @escaping (String) -> Void) {
-        self.missions = missions
+    init(mission: Mission, onFire: @escaping () -> Void) {
+        self.mission = mission
         self.onFire = onFire
     }
 
     deinit { stop() }
 
-    /// 켜져 있는 묶음 (진단용)
-    var activeFamilies: Set<WatchFamily> { Set(running.keys) }
-
-    /// 저장 진행에 맞춰 바뀐 묶음만 켜고 끈다. 같은 진행을 여러 번 받아도(XP 만 바뀐 저장) 아무것도 다시 시작하지 않는다.
-    func apply(_ progress: SaveProgress) {
-        let desired = makeWatchPlan(missions: missions, progress: progress)
-        for (family, action) in diffWatchPlan(running: running, desired: desired) {
-            switch action {
-            case .stop:
-                stopFamily(family)
-            case .retarget:
-                running[family] = desired[family]
-            case .start, .restart:
-                stopFamily(family)
-                running[family] = desired[family]
-                startFamily(family)
-            }
-        }
-    }
-
-    /// 모든 감시를 멈추고 자원을 돌려준다. 여러 번 불러도 안전하다.
-    func stop() {
-        for f in WatchFamily.allCases { stopFamily(f) }
-    }
-
-    private func stopFamily(_ family: WatchFamily) {
-        running[family] = nil
-        teardowns.removeValue(forKey: family)?()
-    }
-
-    private func startFamily(_ family: WatchFamily) {
-        guard let ids = running[family], !ids.isEmpty else { return }
+    /// 이 미션의 감지기를 켠다. 네이티브가 감지하지 않는 트리거면 아무것도 켜지 않는다. 한 번만 켜진다(stop 뒤에는 새로 만든다).
+    func start() {
+        guard !armed, teardown == nil else { return }
         let td: () -> Void
-        switch family {
-        case .appearance: td = startAppearance()
+        switch mission.trigger {
+        case .appearanceChange: td = startAppearance()
         case .screenshot: td = startScreenshot()
-        case .defaults: td = startDefaultsPolling(ids)
-        case .accessibility: td = startAccessibility(ids)
-        case .appOpen: td = startAppOpen(ids)
-        case .clipboard: td = startClipboard()
-        case .space: td = startSpaceChange()
-        case .shortcut: td = startShortcuts(ids)
-        case .permission: td = startAccessibilityPermission()
+        case let .defaultsChange(domain, keys, ignore, to): td = startDefaultsPolling(domain: domain, keys: keys, ignore: ignore, to: to)
+        case let .accessibility(flag, to): td = startAccessibility(flag: flag, to: to)
+        case let .appOpen(bundleId): td = startAppOpen(bundleId)
+        case .clipboardChange: td = startClipboard()
+        case .spaceChange: td = startSpaceChange()
+        case let .shortcut(keys): td = startShortcut(keys)
+        case .accessibilityPermission, .manual, .unknown: return
         }
-        teardowns[family] = td
+        armed = true
+        teardown = td
     }
 
-    /// 이 묶음의 아직 안 끝난 미션 중 트리거가 맞는 것
-    private func missionsOf(_ family: WatchFamily, _ ids: [String]) -> [Mission] {
-        let set = Set(ids)
-        return missions.filter { set.contains($0.id) && watchFamily(of: $0.trigger) == family }
+    /// 감시를 멈추고 자원을 돌려준다. 여러 번 불러도 안전하다. 멈춘 뒤에 도착한 알림은 버린다.
+    func stop() {
+        armed = false
+        teardown?()
+        teardown = nil
     }
 
-    private func fire(_ family: WatchFamily, _ id: String) {
-        guard running[family]?.contains(id) == true else { return } // 끝났거나 꺼진 묶음의 늦은 알림은 버린다
-        print("[mission] fired \(id)")
-        onFire(id)
-    }
-
-    private func fireAll(_ family: WatchFamily) {
-        (running[family] ?? []).forEach { fire(family, $0) }
+    private func fire() {
+        guard armed else { return } // 멈춘 뒤의 늦은 알림은 버린다
+        print("[mission] fired \(mission.id)")
+        onFire()
     }
 
     // MARK: 알림 센터 관찰 도우미
@@ -96,19 +63,14 @@ final class MissionWatcher {
 
     private func startAppearance() -> () -> Void {
         observe(DistributedNotificationCenter.default(), Notification.Name("AppleInterfaceThemeChangedNotification")) { [weak self] _ in
-            self?.fireAll(.appearance)
+            self?.fire()
         }
     }
 
-    private func startAppOpen(_ ids: [String]) -> () -> Void {
-        let targets: [(id: String, bundleId: String)] = missionsOf(.appOpen, ids).compactMap {
-            if case let .appOpen(b) = $0.trigger { return ($0.id, b) }
-            return nil
-        }
-        return observe(NSWorkspace.shared.notificationCenter, NSWorkspace.didActivateApplicationNotification) { [weak self] n in
+    private func startAppOpen(_ bundleId: String) -> () -> Void {
+        observe(NSWorkspace.shared.notificationCenter, NSWorkspace.didActivateApplicationNotification) { [weak self] n in
             let app = n.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication
-            guard let bid = app?.bundleIdentifier else { return }
-            targets.filter { $0.bundleId == bid }.forEach { self?.fire(.appOpen, $0.id) }
+            if app?.bundleIdentifier == bundleId { self?.fire() }
         }
     }
 
@@ -118,7 +80,7 @@ final class MissionWatcher {
             let now = NSPasteboard.general.changeCount
             guard now != last else { return }
             last = now
-            self?.fireAll(.clipboard)
+            self?.fire()
         }
         t.tolerance = 0.3 // 시스템이 다른 타이머와 묶어 깨울 수 있게 한다
         RunLoop.main.add(t, forMode: .common)
@@ -127,36 +89,19 @@ final class MissionWatcher {
 
     private func startSpaceChange() -> () -> Void {
         observe(NSWorkspace.shared.notificationCenter, NSWorkspace.activeSpaceDidChangeNotification) { [weak self] _ in
-            self?.fireAll(.space)
+            self?.fire()
         }
     }
 
-    // MARK: 손쉬운 사용 권한 / 단축키
+    // MARK: 단축키
 
-    /// 권한 미션이 아직 안 끝났을 때만 켠다. 끝난 뒤의 권한 상태 알림은 컨트롤러가 계속 웹에 보낸다.
-    private func startAccessibilityPermission() -> () -> Void {
-        let access = AccessibilityAccess.shared
-        access.start()
-        if access.isTrusted {
-            DispatchQueue.main.async { [weak self] in
-                if AccessibilityAccess.shared.isTrusted { self?.fireAll(.permission) }
-            }
+    /// 등록된 이 미션의 단축키 하나만 본다. 다른 미션의 단축키는 탭에 넣지 않는다.
+    private func startShortcut(_ keys: String) -> () -> Void {
+        guard let s = parseShortcut(keys) else {
+            print("[mission] bad shortcut for \(mission.id)")
+            return {}
         }
-        let token = access.addObserver { [weak self] trusted in
-            if trusted { self?.fireAll(.permission) }
-        }
-        return { access.removeObserver(token) }
-    }
-
-    private func startShortcuts(_ ids: [String]) -> () -> Void {
-        var list: [(id: String, shortcut: Shortcut)] = []
-        for m in missionsOf(.shortcut, ids) {
-            guard case let .shortcut(keys) = m.trigger else { continue }
-            if let s = parseShortcut(keys) { list.append((m.id, s)) }
-            else { print("[mission] bad shortcut for \(m.id)") }
-        }
-        guard !list.isEmpty else { return {} }
-        let watcher = ShortcutWatcher(shortcuts: list) { [weak self] id in self?.fire(.shortcut, id) }
+        let watcher = ShortcutWatcher(shortcuts: [(mission.id, s)]) { [weak self] _ in self?.fire() }
         let access = AccessibilityAccess.shared
         access.start()
         let begin = {
@@ -260,15 +205,15 @@ final class MissionWatcher {
 
     /// 스크린샷 한 장에 알림이 여러 번 오므로(이름 바꾸기 → 속성 쓰기, Spotlight) 3초 안의 중복은 버린다.
     private func fireScreenshot() {
-        guard running[.screenshot] != nil, Date().timeIntervalSince(lastShot) > 3 else { return }
+        guard armed, Date().timeIntervalSince(lastShot) > 3 else { return }
         lastShot = Date()
-        fireAll(.screenshot)
+        fire()
     }
 
     // MARK: defaults 폴링
 
-    private func readDefaults(domain: String, keys: [String], sync: Bool = true) -> [String: String?] {
-        if sync { CFPreferencesAppSynchronize(domain as CFString) }
+    private func readDefaults(domain: String, keys: [String]) -> [String: String?] {
+        CFPreferencesAppSynchronize(domain as CFString)
         var result: [String: String?] = [:]
         for key in keys {
             let v = CFPreferencesCopyAppValue(key as CFString, domain as CFString)
@@ -277,34 +222,18 @@ final class MissionWatcher {
         return result
     }
 
-    private func startDefaultsPolling(_ ids: [String]) -> () -> Void {
-        var targets: [(id: String, domain: String, keys: [String], ignore: [String], to: String?)] = []
-        for m in missionsOf(.defaults, ids) {
-            if case let .defaultsChange(domain, keys, ignore, to) = m.trigger {
-                targets.append((m.id, domain, keys, ignore, to))
-                defaultsSnapshots[m.id] = readDefaults(domain: domain, keys: keys)
-            }
-        }
-        guard !targets.isEmpty else { return {} }
-        let domains = Set(targets.map(\.domain))
+    private func startDefaultsPolling(domain: String, keys: [String], ignore: [String], to: String?) -> () -> Void {
+        var snapshot = readDefaults(domain: domain, keys: keys) // 기준값은 켜는 순간 새로 잡는다
         let t = Timer(timeInterval: 1.5, repeats: true) { [weak self] _ in
             guard let self = self else { return }
-            // 같은 도메인은 틱마다 한 번만 동기화한다
-            domains.forEach { CFPreferencesAppSynchronize($0 as CFString) }
-            for t in targets {
-                let new = self.readDefaults(domain: t.domain, keys: t.keys, sync: false)
-                let old = self.defaultsSnapshots[t.id] ?? [:]
-                self.defaultsSnapshots[t.id] = new
-                if defaultsChangeFired(old: old, new: new, ignoreValues: t.ignore, to: t.to) { self.fire(.defaults, t.id) }
-            }
+            let new = self.readDefaults(domain: domain, keys: keys)
+            let old = snapshot
+            snapshot = new
+            if defaultsChangeFired(old: old, new: new, ignoreValues: ignore, to: to) { self.fire() }
         }
         t.tolerance = 0.5
         RunLoop.main.add(t, forMode: .common)
-        let tids = targets.map(\.id)
-        return { [weak self] in
-            t.invalidate()
-            tids.forEach { self?.defaultsSnapshots[$0] = nil }
-        }
+        return { t.invalidate() }
     }
 
     // MARK: 손쉬운 사용 설정(화면 옵션)
@@ -320,22 +249,15 @@ final class MissionWatcher {
         ]
     }
 
-    private func startAccessibility(_ ids: [String]) -> () -> Void {
-        let targets: [(id: String, flag: String, to: Bool)] = missionsOf(.accessibility, ids).compactMap {
-            if case let .accessibility(flag, to) = $0.trigger { return ($0.id, flag, to) }
-            return nil
-        }
-        guard !targets.isEmpty else { return {} }
+    private func startAccessibility(flag: String, to: Bool) -> () -> Void {
         var state = currentA11y()
         return observe(NSWorkspace.shared.notificationCenter, NSWorkspace.accessibilityDisplayOptionsDidChangeNotification) { [weak self] _ in
             guard let self = self else { return }
             let new = self.currentA11y()
             let old = state
             state = new
-            for t in targets {
-                guard let o = old[t.flag], let n = new[t.flag] else { continue }
-                if accessibilityFired(old: o, new: n, to: t.to) { self.fire(.accessibility, t.id) }
-            }
+            guard let o = old[flag], let n = new[flag] else { return }
+            if accessibilityFired(old: o, new: n, to: to) { self.fire() }
         }
     }
 }

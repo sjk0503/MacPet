@@ -1,32 +1,161 @@
 [
  {
-  "native": { "type": "command", "name": "toggleMissions" }
+  "native": {
+   "type": "command",
+   "name": "toggleMissions"
+  }
  },
  {
-  "eval": "Array.from(document.querySelectorAll('.m-row')).find(row => row.textContent.includes('⌘ Tab')).click()"
+  "until": "window.missionQA.isCardOpen()",
+  "timeout": 5,
+  "name": "메뉴 명령으로 카드 열림"
  },
  {
-  "expect": "document.querySelector('.m-item.is-open .m-set').textContent === '권한 미션 보기'",
+  "eval": "window.missionQA.scrollIntoView('.m-item[data-mission-id=shortcut-app-switch] .m-row')"
+ },
+ {
+  "tap": ".m-item[data-mission-id=shortcut-app-switch] .m-row"
+ },
+ {
+  "until": "window.missionQA.buttonText('.m-item.is-open .m-set') === '권한 미션 보기'",
+  "timeout": 3,
   "name": "예전에 권한 미션을 수동 완료한 펫에도 잠긴 단축키에서 권한 미션으로 가는 버튼이 있음"
  },
  {
-  "eval": "document.querySelector('.m-item.is-open .m-set').scrollIntoView({block:'center'})"
+  "eval": "window.missionQA.scrollIntoView('.m-item.is-open .m-set')"
  },
  {
   "tap": ".m-item.is-open .m-set"
  },
  {
-  "expect": "document.querySelector('.m-item.is-open .m-go').textContent === '권한 요청하기' && document.querySelector('.m-item.is-open .m-set').textContent === '설정 열기' && !document.querySelector('.m-item.is-open .m-skip')",
+  "until": "!!document.querySelector('.m-item.is-open[data-mission-id=grant-accessibility]') && window.missionQA.buttonText('.m-item.is-open .m-go') === '권한 요청하기' && window.missionQA.buttonText('.m-item.is-open .m-set') === '설정 열기' && !document.querySelector('.m-item.is-open .m-skip')",
+  "timeout": 3,
   "name": "수동 완료 기록이 있어도 권한 요청과 설정 열기에 다시 접근할 수 있음"
  },
  {
-  "native": { "type": "permission", "name": "accessibility", "granted": true }
+  "eval": "window.missionQA.scrollIntoView('.m-item.is-open .m-permission')"
  },
  {
-  "native": { "type": "mission", "id": "grant-accessibility" }
+  "tap": ".m-item.is-open .m-permission"
  },
  {
-  "expect": "document.querySelector('.m-item.is-open .tag').textContent === '✓ 완료' && document.querySelector('.card-hd .sub').textContent.includes('LV 4') && document.querySelector('.wpet-bar').getAttribute('aria-label') === '경험치 20 / 40' && document.querySelector('.card-hd .prog').textContent === '미션 1 / 17'",
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "shortcut-app-switch"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "shortcut-quit"
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "window.missionQA.currentMission() === null",
+  "name": "이미 끝낸 권한 미션은 다시 요청해도 지켜보는 미션으로 등록되지 않음"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,4,20,'grant-accessibility') && s.done['grant-accessibility']==='2026-11-17T00:00:00Z' && s.manual && s.manual['grant-accessibility']===true",
+  "name": "권한이 없는 동안의 요청·미션·단축키 신호로는 저장 그대로"
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": true
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "until": "window.missionQA.buttonText('.m-item.is-open .tag') === '✓ 완료'",
+  "timeout": 3,
+  "name": "권한을 실제로 허용하면 권한 미션이 완료로 보임"
+ },
+ {
+  "expect": "document.querySelector('.card-hd .sub').textContent.includes('LV 4') && document.querySelector('.wpet-bar').getAttribute('aria-label') === '경험치 20 / 40' && document.querySelector('.card-hd .prog').textContent === '미션 1 / 17'",
   "name": "권한을 실제로 허용해도 기존 완료 기록과 경험치를 보존함"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,4,20,'grant-accessibility') && s.done['grant-accessibility']==='2026-11-17T00:00:00Z' && s.manual && s.manual['grant-accessibility']===true",
+  "name": "권한 허용 뒤에도 저장의 경험치·완료 시각·수동 완료 표시가 그대로 (+40 을 다시 주지 않음)"
+ },
+ {
+  "expect": "window.missionQA.missionTag('shortcut-close-window').includes('EXP')",
+  "name": "권한이 생기면 단축키 미션이 풀림"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "shortcut-close-window"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "shortcut-quit"
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,4,20,'grant-accessibility')",
+  "name": "풀린 단축키도 시작하기 전에 온 신호(⌘W·⌘Q)로는 경험치 없음"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item[data-mission-id=shortcut-close-window] .m-row')"
+ },
+ {
+  "tap": ".m-item[data-mission-id=shortcut-close-window] .m-row"
+ },
+ {
+  "until": "window.missionQA.buttonText('.m-item.is-open[data-mission-id=shortcut-close-window] .m-go') === '같이 하기'",
+  "timeout": 3,
+  "name": "⌘ W 미션 줄을 펼침"
+ },
+ {
+  "eval": "window.missionQA.scrollIntoView('.m-item.is-open .m-go')"
+ },
+ {
+  "tap": ".m-item.is-open .m-go"
+ },
+ {
+  "until": "!window.missionQA.isCardOpen() && window.missionQA.currentMission() === 'shortcut-close-window'",
+  "timeout": 3,
+  "name": "같이 하기 → ⌘ W 미션만 지켜봄"
+ },
+ {
+  "until": "window.missionQA.isGuideStepVisible('⌘ W', 1)",
+  "timeout": 10,
+  "name": "인사가 끝나면 ⌘ W 안내가 보임"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "shortcut-close-window"
+  }
+ },
+ {
+  "until": "window.missionQA.bubbleText().includes('⌘ W 로 창 닫기 성공')",
+  "timeout": 8,
+  "name": "지켜보는 단축키(⌘W)를 누르면 확인 없이 성공"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,5,10,'grant-accessibility,shortcut-close-window') && s.done['grant-accessibility']==='2026-11-17T00:00:00Z' && s.manual && s.manual['grant-accessibility']===true && !s.manual['shortcut-close-window']",
+  "name": "⌘W +30 EXP 한 번 (LV5 · 10), 예전 권한 미션 기록은 그대로"
  }
 ]

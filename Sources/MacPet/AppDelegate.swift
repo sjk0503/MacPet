@@ -101,21 +101,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             return abortLaunch("missions.json 을 해석하지 못했어요: \(error)")
         }
 
-        let c = PetPanelController(webDir: web.dir, missionsData: catalog.webData, save: save, debug: options.debug,
+        let c = PetPanelController(webDir: web.dir, missionsData: catalog.webData, missions: catalog.missions, save: save, debug: options.debug,
                                     isolated: options.qa != nil)
         controller = c
         c.onReady = { [weak self] in self?.handleReady() }
         c.show()
 
-        let w = MissionWatcher(missions: catalog.missions) { [weak c] id in
-            c?.send(["type": "mission", "id": id])
-        }
-        w.logFileEvents = options.debug
-        watcher = w
-        // 감시는 웹이 저장하며 알리는 진행(부화 여부 + 끝낸 미션)에 맞춰 필요한 묶음만 켜진다.
-        // 점검 스크립트를 돌릴 때는 실제 감지를 끈다 (점검 중 사용자의 복사·스크린샷 등이 끼어들지 않게)
+        // 감지기는 웹이 등록한 미션 하나에만, 등록(시도)마다 새로 만든다. 등록이 풀리면 바로 없앤다.
+        // 점검 스크립트를 돌릴 때는 등록만 기억하고 실제 감지는 켜지 않는다 (점검 중 사용자의 복사·스크린샷 등이 끼어들지 않게)
         if options.qa == nil {
-            c.onProgress = { [weak w] progress in w?.apply(progress) }
+            let logFileEvents = options.debug
+            c.onWatchChange = { [weak self, weak c] arming in
+                guard let self = self else { return }
+                self.watcher?.stop()
+                self.watcher = nil
+                guard let arming = arming, watchFamily(of: arming.mission.trigger) != nil else { return }
+                let serial = arming.serial // 이 감지기가 알리는 것은 이 등록에만 쓰인다
+                let w = MissionWatcher(mission: arming.mission) { [weak c] in c?.deliverMission(serial: serial) }
+                w.logFileEvents = logFileEvents
+                self.watcher = w
+                w.start()
+            }
         }
 
         if let steps = qaSteps {
@@ -144,7 +150,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         readySeen = true
         if let id = options.simulate {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
-                self?.controller?.send(["type": "mission", "id": id])
+                self?.controller?.sendInjected(["type": "mission", "id": id])
             }
         }
         if let name = options.command {

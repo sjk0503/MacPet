@@ -3,9 +3,49 @@ import WebKit
 import MacPetCore
 
 /// 키 창이 될 수 있는 투명 패널.
+///
+/// 점검(qaIsolated)에서는 사람의 입력과 완전히 끊는다: 키 창이 되지 않고(사용자가 치던 글자를 가로채지 않는다),
+/// 운영체제가 보내 온 마우스·키 이벤트는 버리며, 점검 실행기가 `inject` 로 직접 넣은 이벤트만 받는다.
 final class PetPanel: NSPanel {
-    override var canBecomeKey: Bool { true }
+    /// 만든 직후 한 번만 정한다. 켜면 되돌리지 않는다.
+    var qaIsolated = false
+    private var injecting = false
+
+    override var canBecomeKey: Bool { !qaIsolated }
     override var canBecomeMain: Bool { false }
+
+    /// 점검에서 만든 이벤트를 창으로 직접 보낸다. 점검이 아닐 때는 그냥 sendEvent 와 같다.
+    func inject(_ event: NSEvent) {
+        let was = injecting
+        injecting = true
+        defer { injecting = was }
+        super.sendEvent(event)
+    }
+
+    override func sendEvent(_ event: NSEvent) {
+        if qaIsolated, !injecting, Self.isUserInput(event.type) { return }
+        super.sendEvent(event)
+    }
+
+    /// 단축키는 sendEvent 를 거치지 않고 들어오므로 따로 막는다.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if qaIsolated, !injecting { return false }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    private static func isUserInput(_ type: NSEvent.EventType) -> Bool {
+        switch type {
+        case .keyDown, .keyUp, .flagsChanged,
+             .leftMouseDown, .leftMouseUp, .leftMouseDragged,
+             .rightMouseDown, .rightMouseUp, .rightMouseDragged,
+             .otherMouseDown, .otherMouseUp, .otherMouseDragged,
+             .mouseMoved, .mouseEntered, .mouseExited, .scrollWheel,
+             .gesture, .magnify, .swipe, .rotate, .smartMagnify, .pressure:
+            return true
+        default:
+            return false
+        }
+    }
 }
 
 /// 비활성 상태에서도 첫 클릭이 먹는 웹뷰.
@@ -46,12 +86,18 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
     private let pointer = PointerController()
     private let isolated: Bool
     var onReady: (() -> Void)?
-    /// JS 가 저장할 때마다(초기화 중 ready 전, 부화·초기화·미션 완료·XP 포함) 부화 여부와 끝낸 미션을 알린다. 읽기 전용(보호) 저장에서는 부르지 않는다.
-    var onProgress: ((SaveProgress) -> Void)?
+    /// 웹이 등록한 미션 감시(한 번에 하나). 저장하지 않으며, 숨기기·다시 로드·자격 상실 때 풀리고 웹이 새로 등록해야 다시 걸린다.
+    private var enrollment: WatchEnrollment
+    private var notifiedSerial: Int?
+    /// 걸린 감시가 바뀔 때(새로 걸림·풀림)만 부른다. 실제 감지기는 받는 쪽(AppDelegate)이 만든다. 점검 실행에서는 아무도 받지 않는다.
+    var onWatchChange: ((WatchArming?) -> Void)?
+    /// 지금 걸린 감시 (점검용 이벤트 넣기에서 attempt 를 찾을 때도 쓴다)
+    var currentWatch: WatchArming? { enrollment.current }
 
     /// isolated: 점검 스크립트를 돌릴 때 켠다. 실제 권한 상태를 웹 화면에 알리지 않아(항상 '권한 없음') 결과가 환경에 따라 달라지지 않는다.
-    init(webDir: URL?, missionsData: Data?, save: SaveStore, debug: Bool, isolated: Bool = false) {
+    init(webDir: URL?, missionsData: Data?, missions: [Mission] = [], save: SaveStore, debug: Bool, isolated: Bool = false) {
         self.isolated = isolated
+        enrollment = WatchEnrollment(missions: missions)
         self.save = save
         self.debug = debug
 
@@ -64,6 +110,7 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
         let p = PetPanel(contentRect: NSRect(origin: .zero, size: Self.size),
                          styleMask: [.borderless, .nonactivatingPanel],
                          backing: .buffered, defer: false)
+        p.qaIsolated = isolated
         panel = p
         mover = PanelMover(panel: p, save: save)
         super.init()
@@ -86,11 +133,16 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
         if debug { webView.isInspectable = true }
 
         // 초기 데이터 주입 (JSON 은 JSONSerialization 으로)
-        let missions = missionsData.flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? []
+        let webMissions = missionsData.flatMap { try? JSONSerialization.jsonObject(with: $0) } ?? []
+        let loaded = save.load()
+        // 웹이 첫 저장을 보내기 전의 진행. 읽기 전용(보호) 저장이면 자격 없음으로 둔다.
+        enrollment.setProgress(save.protectedReason == nil ? SaveProgress(state: loaded) : nil)
         let payload: [String: Any] = [
-            "save": save.load() ?? NSNull(),
-            "missions": missions,
+            "save": loaded ?? NSNull(),
+            "missions": webMissions,
             "debug": debug,
+            // 개발용 명령(devCompleteNext)은 디버그 실행이나 격리된 점검에서만 웹이 받아들인다
+            "allowDevCommands": debug || isolated,
         ]
         if let data = try? JSONSerialization.data(withJSONObject: payload),
            let json = String(data: data, encoding: .utf8) {
@@ -159,12 +211,15 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
         panel.orderFrontRegardless()
         pointer.setPaused(false)
         refreshClickThrough()
+        enrollment.setVisible(true) // 보이게 됐다고 감시가 다시 걸리지는 않는다. 웹이 새로 등록한다
         send(["type": "visibility", "visible": true])
     }
 
     func hide() {
         let was = shown
         shown = false
+        enrollment.setVisible(false) // 숨기는 즉시 감시를 끈다
+        syncWatch()
         panel.orderOut(nil)
         pointer.setPaused(true)
         refreshClickThrough() // 타이머·감시를 끄고 클릭을 통과시킨다
@@ -183,8 +238,9 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
     // MARK: 클릭 통과
 
     /// 클릭 통과 갱신은 보이고(shown) 눌리는 영역이 있을 때만 돈다. 아니면 타이머도 마우스 감시도 없다.
+    /// 점검(isolated)에서는 늘 통과시킨다: 실제 마우스는 이 창에 닿지 않고, 점검 클릭은 창으로 직접 들어간다.
     private func refreshClickThrough() {
-        if shown, !hitRects.isEmpty {
+        if shown, !hitRects.isEmpty, !isolated {
             startClickThrough()
             updateClickThrough()
         } else {
@@ -243,6 +299,34 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
         scheduleClickTimer(near ? Self.nearInterval : Self.farInterval)
     }
 
+    // MARK: 미션 감시 등록
+
+    /// 걸린 감시가 실제로 바뀌었을 때만 알린다(저장이 와도 그대로면 감지기를 건드리지 않는다).
+    private func syncWatch() {
+        let serial = enrollment.current?.serial
+        guard serial != notifiedSerial else { return }
+        notifiedSerial = serial
+        if debug { print("[watch] \(enrollment.current.map { "armed \($0.mission.id) #\($0.attempt)" } ?? "disarmed")") }
+        onWatchChange?(enrollment.current)
+    }
+
+    /// 감지기가 부른다. 그 감지기를 건 등록이 아직 그대로일 때만, 걸 때 받은 attempt 를 붙여 웹에 알린다.
+    func deliverMission(serial: Int) {
+        guard let w = enrollment.current, w.serial == serial else { return }
+        send(["type": "mission", "id": w.mission.id, "attempt": w.attempt])
+    }
+
+    /// 다시 로드되면 앞선 화면의 등록은 버린다.
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        enrollment.setReady(false)
+        syncWatch()
+    }
+
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        enrollment.setReady(false)
+        syncWatch()
+    }
+
     // MARK: 네이티브 -> JS
 
     func send(_ event: [String: Any]) {
@@ -269,6 +353,9 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
         switch type {
         case "ready":
             isReady = true
+            enrollment.setReady(true)
+            enrollment.setVisible(shown && panel.isVisible)
+            syncWatch()
             print("[pet] ready")
             let pending = queue
             queue.removeAll()
@@ -278,17 +365,17 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
             onReady?()
         case "save":
             if let state = body["state"] as? [String: Any] {
-                let wasProtected = save.protectedReason != nil
                 save.write(state)
-                // 보호(읽기 전용) 저장은 감시를 시작하지 않는다
-                if save.protectedReason == nil {
-                    if let progress = SaveProgress(state: state) { onProgress?(progress) }
-                } else if !wasProtected {
-                    // 실행 중 바깥에서 더 새로운·깨진 저장으로 바뀌어 보호로 넘어간 순간: 돌던 미션 감시를 모두 끈다.
-                    // (권한 상태 보고는 별도 관찰이라 그대로 유지된다)
-                    onProgress?(SaveProgress(hatched: false, done: []))
-                }
+                // 보호(읽기 전용) 저장은 감시 자격이 없다. 실행 중 보호로 넘어간 순간에도 돌던 감시를 끈다.
+                // 자격이 그대로면 걸린 감시를 건드리지 않는다. (권한 상태 보고는 별도 관찰이라 그대로 유지된다)
+                enrollment.setProgress(save.protectedReason == nil ? SaveProgress(state: state) : nil)
+                syncWatch()
             }
+        case "watchMission":
+            // 사용자가 안내를 따라 하기로 한 미션 하나만 건다. id:null 이나 모양이 어긋난 요청은 해제.
+            enrollment.setVisible(shown && panel.isVisible)
+            enrollment.request(WatchRegistration(message: body))
+            syncWatch()
         case "hitRects":
             let raw = body["rects"] as? [[String: Any]] ?? []
             func num(_ v: Any?) -> Double { (v as? NSNumber)?.doubleValue ?? 0 }
@@ -311,6 +398,8 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
             if isolated { break }
             pointer.setTarget(body["target"] as? [String: Any])
         case "dragStart":
+            // 점검(isolated)에서는 실제 마우스를 따라 창을 옮기지 않는다
+            if isolated { break }
             mover.beginDrag()
         case "log":
             print("[web] \(body["msg"] ?? body["message"] ?? "")")
@@ -353,6 +442,11 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
 
     // MARK: 점검 실행기(QARunner)가 쓰는 통로
 
+    /// 점검·개발용으로 직접 넣는 이벤트. attempt 없는 mission 이벤트에만, 그 미션이 지금 등록돼 있으면 등록된 attempt 를 붙인다.
+    func sendInjected(_ event: [String: Any]) {
+        send(decorateInjectedMission(event, registration: enrollment.current?.registration))
+    }
+
     func evaluate(_ js: String, completion: @escaping (Any?) -> Void) {
         webView.evaluateJavaScript(js) { value, error in
             if let error = error { print("[qa] js error: \(error.localizedDescription)") }
@@ -370,7 +464,7 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
                                           timestamp: ProcessInfo.processInfo.systemUptime,
                                           windowNumber: panel.windowNumber, context: nil,
                                           eventNumber: 0, clickCount: 1, pressure: pressure) {
-                panel.sendEvent(e)
+                panel.inject(e)
             }
         }
         send(.leftMouseDown, 1)
@@ -379,8 +473,10 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
     }
 
     /// 글자를 키 입력으로 보낸다. 실제 사용에서는 입력 칸을 누르면 창이 키 창이 되므로 여기서도 키 창으로 만든다.
+    /// 점검(isolated)에서는 키 창으로 만들지 않고(사용자의 실제 키 입력을 끌어오지 않도록) 창 안의 첫 응답자만 웹뷰로 맞춘 뒤,
+    /// 키 창 여부와 무관하게 웹뷰의 keyDown/keyUp 으로 직접 넣는다.
     func typeText(_ text: String) {
-        panel.makeKey()
+        if !isolated { panel.makeKey() }
         panel.makeFirstResponder(webView)
         for ch in text {
             let s = String(ch)
@@ -390,7 +486,9 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
                                             windowNumber: panel.windowNumber, context: nil,
                                             characters: s, charactersIgnoringModifiers: s,
                                             isARepeat: false, keyCode: 0) {
-                    panel.sendEvent(e)
+                    if !isolated { panel.sendEvent(e) }
+                    else if type == .keyDown { webView.keyDown(with: e) }
+                    else { webView.keyUp(with: e) }
                 }
             }
         }
@@ -419,7 +517,7 @@ final class PetPanelController: NSObject, WKScriptMessageHandler, WKNavigationDe
                                           timestamp: ProcessInfo.processInfo.systemUptime,
                                           windowNumber: panel.windowNumber, context: nil,
                                           eventNumber: 0, clickCount: 1, pressure: pressure) {
-                panel.sendEvent(e)
+                panel.inject(e)
             }
         }
         print("[tap] sent at \(Int(p.x)),\(Int(p.y))")

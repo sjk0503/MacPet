@@ -1,41 +1,52 @@
 [
  {
-  "wait": 4.6
- },
- {
-  "expect": "document.querySelector('#chip').textContent.includes('옛펫') && document.querySelector('#chip').textContent.includes('LV3')",
+  "until": "window.missionQA.chipText().includes('옛펫') && window.missionQA.chipText().includes('LV3')",
+  "timeout": 8,
   "name": "종이 사라진 옛 v1 저장에서도 이름과 레벨을 이어 감"
  },
  {
-  "expect": "document.querySelector('#bubble .b-name').textContent === '복사하고 붙여넣기' && document.querySelector('#bubble .b-step').textContent === '1 / 3'",
+  "until": "window.missionQA.buttonText('#bubble .b-name') === '복사하고 붙여넣기' && window.missionQA.buttonText('#bubble .b-step') === '1 / 3' && window.missionQA.isBubbleVisible()",
+  "timeout": 12,
   "name": "저장된 현재 미션 안내가 1단계로 복원됨"
  },
  {
-  "tap": "#bubble .b-next"
+  "expect": "window.missionQA.buttonText('#bubble .b-resume') === '안내 계속하기' && window.missionQA.currentMission() === null && !window.missionQA.hasEvidenceConfirmation()",
+  "name": "복원된 안내는 '안내 계속하기'를 누르기 전에는 지켜보지 않음"
  },
  {
-  "expect": "document.querySelector('#bubble .b-step').textContent === '2 / 3'",
-  "name": "안내를 다음 단계로 넘길 수 있음"
+  "native": {
+   "type": "mission",
+   "id": "copy"
+  }
  },
  {
-  "wait": 0.3
+  "native": {
+   "type": "mission",
+   "id": "copy",
+   "attempt": 1
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "!window.missionQA.hasEvidenceConfirmation() && window.missionQA.currentMission() === null && !window.missionQA.bubbleText().includes('성공')",
+  "name": "복원만 된 안내에 온 신호(번호를 지어낸 것 포함)는 버려짐"
  },
  {
   "expectSave": "s.v===1&&typeof s.species==='string'&&/^(nyang|bam|hammy|mung|peng|chick|rabbit|panda|seal|uni)$/.test(s.species)",
   "name": "실제 저장 파일이 0.1.0 읽기 조건(v===1 이고 이 버전에 있는 종)을 만족 — 깨진 옛 종이 고쳐져 다운그레이드 가능"
  },
  {
-  "expectSave": "s.name==='옛펫'&&s.level===3&&s.exp===15&&!!s.guide&&s.guide.id==='copy'&&s.guide.step===1&&!!s.done&&s.done.screenshot==='2024-01-02T00:00:00.000Z'&&s.done['removed-legacy-mission']==='2024-01-01T00:00:00.000Z'",
-  "name": "0.1.0 이 읽는 name·level·exp·guide(1단계 이동 반영)·done 이 저장 파일에 그대로 남음 (사라진 미션 기록 포함)"
+  "expectSave": "window.missionQA.verifySavedProgress(s,3,15,'removed-legacy-mission,screenshot') && s.name==='옛펫' && !!s.guide && s.guide.id==='copy' && s.guide.step===0 && s.done.screenshot==='2024-01-02T00:00:00.000Z' && s.done['removed-legacy-mission']==='2024-01-01T00:00:00.000Z'",
+  "name": "이어 가기 전 신호로는 경험치·완료 기록·안내 단계가 그대로"
  },
  {
   "tap": "#chip"
  },
  {
-  "wait": 0.6
- },
- {
-  "expect": "!document.querySelector('#card').hidden && document.querySelector('.card-hd b').textContent === '옛펫' && document.querySelector('.card-hd .sub').textContent.includes('LV 3')",
+  "until": "window.missionQA.isCardOpen() && document.querySelector('.card-hd b').textContent === '옛펫' && document.querySelector('.card-hd .sub').textContent.includes('LV 3')",
+  "timeout": 3,
   "name": "이름표를 눌러 연 카드가 옛 진행도를 보여 줌"
  },
  {
@@ -46,7 +57,121 @@
   "tap": ".card-x"
  },
  {
-  "expect": "document.querySelector('#card').hidden",
+  "until": "!window.missionQA.isCardOpen() && window.missionQA.buttonText('#bubble .b-resume') === '안내 계속하기' && window.missionQA.currentMission() === null",
+  "timeout": 3,
+  "name": "카드를 닫을 수 있고, 카드를 여닫는 것만으로는 지켜보지 않음"
+ },
+ {
+  "tap": "#bubble .b-resume"
+ },
+ {
+  "until": "window.missionQA.currentMission() === 'copy' && !document.querySelector('#bubble .b-resume') && window.missionQA.buttonText('#bubble .b-step') === '1 / 3'",
+  "timeout": 3,
+  "name": "안내 계속하기 → 같은 단계에서 지켜보기 시작"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "copy"
+  }
+ },
+ {
+  "until": "window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "이어 간 뒤 온 복사 신호 → 확인 단추"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,3,15,'removed-legacy-mission,screenshot')",
+  "name": "확인 전에는 경험치 없음"
+ },
+ {
+  "panelVisible": false
+ },
+ {
+  "until": "nativeVisible === false && window.missionQA.currentMission() === null",
+  "timeout": 5,
+  "name": "펫을 숨기면 지켜보기가 끝남"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "copy"
+  }
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "until": "nativeVisible === true && !document.hidden && window.missionQA.buttonText('#bubble .b-resume') === '안내 계속하기' && !window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 5,
+  "name": "다시 보이면 기다리던 신호는 사라지고 '안내 계속하기'로 돌아감"
+ },
+ {
+  "tap": "#bubble .b-next"
+ },
+ {
+  "until": "window.missionQA.buttonText('#bubble .b-step') === '2 / 3' && window.missionQA.currentMission() === 'copy' && !document.querySelector('#bubble .b-resume') && !window.missionQA.hasEvidenceConfirmation()",
+  "timeout": 3,
+  "name": "안내를 다음 단계로 넘길 수 있고, 다음을 누르면 다시 지켜봄"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,3,15,'removed-legacy-mission,screenshot') && s.name==='옛펫' && !!s.guide && s.guide.id==='copy' && s.guide.step===1 && s.done.screenshot==='2024-01-02T00:00:00.000Z' && s.done['removed-legacy-mission']==='2024-01-01T00:00:00.000Z'",
+  "name": "0.1.0 이 읽는 name·level·exp·guide(1단계 이동 반영)·done 이 저장 파일에 그대로 남음 (사라진 미션 기록 포함)"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "copy"
+  }
+ },
+ {
+  "until": "window.missionQA.hasEvidenceConfirmation() && window.missionQA.buttonText('#bubble .b-step') === '2 / 3'",
+  "timeout": 3,
+  "name": "다음 단계에서 온 복사 신호 → 확인 단추"
+ },
+ {
+  "tap": "#bubble .b-confirm-evidence"
+ },
+ {
+  "until": "window.missionQA.bubbleText().includes('복사하고 붙여넣기 성공')",
+  "timeout": 5,
+  "name": "'내가 했어요' → 성공 문구"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,4,10,'copy,removed-legacy-mission,screenshot') && typeof s.done.copy==='string' && s.done.screenshot==='2024-01-02T00:00:00.000Z' && s.done['removed-legacy-mission']==='2024-01-01T00:00:00.000Z' && s.v===1 && (!s.guide || s.guide.id!=='copy')",
+  "name": "확인한 뒤에만 +30 EXP (LV4 · 10), 옛 완료 기록은 시각까지 그대로"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "copy"
+  }
+ },
+ {
+  "wait": 0.3
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "until": "window.missionQA.isCardOpen() && document.querySelector('.card-hd .sub').textContent.includes('LV 4')",
+  "timeout": 3,
+  "name": "완료 뒤 카드가 새 진행도를 보여 줌"
+ },
+ {
+  "expect": "document.querySelector('.card-hd .prog').textContent === '미션 2 / ' + window.__MACPET__.missions.length && document.querySelector('.wpet-bar').getAttribute('aria-label') === '경험치 10 / 40'",
+  "name": "끝난 뒤 다시 온 신호는 세지 않음 (미션 2개, 10/40)"
+ },
+ {
+  "expectSave": "window.missionQA.verifySavedProgress(s,4,10,'copy,removed-legacy-mission,screenshot')",
+  "name": "끝난 미션에 다시 온 신호 뒤에도 저장 그대로"
+ },
+ {
+  "tap": ".card-x"
+ },
+ {
+  "until": "!window.missionQA.isCardOpen()",
+  "timeout": 3,
   "name": "카드를 닫을 수 있음"
  }
 ]
