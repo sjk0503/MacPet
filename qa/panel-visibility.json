@@ -1,0 +1,119 @@
+[
+ {
+  "wait": 1.0
+ },
+ {
+  "eval": "(function(){ if (window.__qa) return 'already'; window.__qa = { ev: [], ticks: 0, mark: 0 }; const f = window.MacPet.onNative; window.MacPet.onNative = function(e){ if (e && e.type === 'visibility') window.__qa.ev.push(e.visible); return f.apply(this, arguments); }; const t = loopTick; window.loopTick = function(){ window.__qa.ticks++; return t.apply(this, arguments); }; return 'hooked'; })()"
+ },
+ {
+  "expect": "nativeVisible === true && loopTimer !== 0",
+  "name": "처음 보임 이벤트 뒤: 엔진이 보임 상태이고 타이머가 걸려 있음"
+ },
+ {
+  "until": "window.__qa.ticks >= 5",
+  "name": "보이는 동안 루프 틱이 쌓임"
+ },
+ {
+  "panelVisible": false
+ },
+ {
+  "until": "nativeVisible === false && loopTimer === 0",
+  "name": "1회차: 숨기면 루프가 멈춤"
+ },
+ {
+  "eval": "(function(){ window.__qa.mark = window.__qa.ticks; return window.__qa.mark; })()"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "expect": "window.__qa.ticks === window.__qa.mark && window.__qa.ev[window.__qa.ev.length - 1] === false",
+  "name": "1회차: 숨긴 동안 틱이 늘지 않음, 마지막 이벤트 visible=false"
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "until": "nativeVisible === true && window.__qa.ticks >= window.__qa.mark + 5",
+  "name": "1회차: 다시 보이면 애니메이션 루프가 재개됨"
+ },
+ {
+  "expect": "window.__qa.ev[window.__qa.ev.length - 1] === true && loopTimer !== 0",
+  "name": "1회차: 마지막 이벤트 visible=true, 타이머 걸림"
+ },
+ {
+  "panelVisible": false
+ },
+ {
+  "until": "nativeVisible === false && loopTimer === 0",
+  "name": "2회차: 숨기면 루프가 멈춤"
+ },
+ {
+  "eval": "(function(){ window.__qa.mark = window.__qa.ticks; return window.__qa.mark; })()"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "expect": "window.__qa.ticks === window.__qa.mark && window.__qa.ev[window.__qa.ev.length - 1] === false",
+  "name": "2회차: 숨긴 동안 틱이 늘지 않음, 마지막 이벤트 visible=false"
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "until": "nativeVisible === true && window.__qa.ticks >= window.__qa.mark + 5",
+  "name": "2회차: 다시 보이면 애니메이션 루프가 재개됨"
+ },
+ {
+  "expect": "window.__qa.ev[window.__qa.ev.length - 1] === true && loopTimer !== 0",
+  "name": "2회차: 마지막 이벤트 visible=true, 타이머 걸림"
+ },
+ {
+  "panelVisible": false
+ },
+ {
+  "until": "nativeVisible === false && loopTimer === 0",
+  "name": "3회차: 숨기면 루프가 멈춤"
+ },
+ {
+  "eval": "(function(){ window.__qa.mark = window.__qa.ticks; return window.__qa.mark; })()"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "expect": "window.__qa.ticks === window.__qa.mark && window.__qa.ev[window.__qa.ev.length - 1] === false",
+  "name": "3회차: 숨긴 동안 틱이 늘지 않음, 마지막 이벤트 visible=false"
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "until": "nativeVisible === true && window.__qa.ticks >= window.__qa.mark + 5",
+  "name": "3회차: 다시 보이면 애니메이션 루프가 재개됨"
+ },
+ {
+  "expect": "window.__qa.ev[window.__qa.ev.length - 1] === true && loopTimer !== 0",
+  "name": "3회차: 마지막 이벤트 visible=true, 타이머 걸림"
+ },
+ {
+  "panelVisible": false
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "panelVisible": false
+ },
+ {
+  "panelVisible": true
+ },
+ {
+  "eval": "(function(){ window.__qa.mark = window.__qa.ticks; return window.__qa.mark; })()"
+ },
+ {
+  "until": "nativeVisible === true && window.__qa.ticks >= window.__qa.mark + 5",
+  "name": "빠른 숨김·보임 반복 뒤에도 루프가 살아 있음"
+ }
+]

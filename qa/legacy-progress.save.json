@@ -1,0 +1,21 @@
+{
+ "v": 1,
+ "species": "ghost-not-in-this-version",
+ "shiny": false,
+ "hatched": true,
+ "crack": 0,
+ "name": "옛펫",
+ "petDay": "",
+ "pets": 0,
+ "lastSeen": 0,
+ "level": 3,
+ "exp": 15,
+ "done": {
+  "removed-legacy-mission": "2024-01-01T00:00:00.000Z",
+  "screenshot": "2024-01-02T00:00:00.000Z"
+ },
+ "guide": {
+  "id": "copy",
+  "step": 0
+ }
+}

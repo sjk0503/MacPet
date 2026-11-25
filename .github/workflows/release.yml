@@ -1,0 +1,117 @@
+name: Release
+
+# vX.Y.Z 태그를 올리면 CI 를 통과한 그 커밋의 소스 ZIP 과 체크섬만 드래프트 릴리스로 올린다.
+# 앱(.app, 앱 ZIP)은 올리지 않고, 공개(publish)는 사람이 드래프트를 확인한 뒤 직접 한다.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: tag matches VERSION
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Check tag is exactly v<VERSION line 1>
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          re='^v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})$'
+          [[ $TAG =~ $re ]] || { echo "::error::태그는 vX.Y.Z 형식이어야 합니다 (앞자리 0, 접미사 불가)"; exit 1; }
+          IFS= read -r version < VERSION
+          [[ "v$version" =~ $re ]] || { echo "::error::VERSION 1줄이 X.Y.Z 형식이 아닙니다"; exit 1; }
+          [ "$TAG" = "v$version" ] || { echo "::error::태그 $TAG 가 VERSION 의 v$version 과 다릅니다"; exit 1; }
+
+  ci:
+    needs: validate
+    uses: ./.github/workflows/ci.yml
+
+  draft:
+    name: source draft release
+    needs: ci
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Build and verify source archive
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          IFS= read -r version < VERSION
+          [ "$TAG" = "v$version" ] || { echo "::error::태그와 VERSION 이 다릅니다"; exit 1; }
+          python3 -I scripts/source-release.py --output-dir "$RUNNER_TEMP/source-release"
+          cd "$RUNNER_TEMP/source-release"
+          shasum -a 256 -c "MacPet-$version-source.zip.sha256"
+          echo "VERSION=$version" >> "$GITHUB_ENV"
+      - name: Create draft release (source ZIP + checksum only)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          zip="MacPet-$VERSION-source.zip"; sum="$zip.sha256"
+          dir="$RUNNER_TEMP/source-release"
+          (cd "$dir" && shasum -a 256 -c "$sum")
+
+          # 같은 태그의 릴리스(드래프트 포함)를 목록에서 찾아 드래프트 여부만 본다. 조회가 실패하면 여기서 멈춘다.
+          draft=$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq ".[] | select(.tag_name == \"$TAG\") | .draft")
+
+          if [ -z "$draft" ]; then
+            cat > "$RUNNER_TEMP/notes.md" <<EOF
+          MacPet $VERSION 소스 배포입니다. 실행 파일은 첨부하지 않으며, 소스에서 직접 빌드해 사용합니다.
+
+          ## 빌드
+          macOS 에서 압축을 풀고 그 폴더에서 실행합니다. 요구 사항과 사용법은 압축 안의 README.md 에 있습니다.
+
+              bash scripts/build-app.sh
+
+          ## 내려받은 파일 확인
+          두 파일을 같은 폴더에 두고 실행합니다. OK 가 나오면 올린 파일과 같습니다.
+
+              shasum -a 256 -c $sum
+
+          ## 라이선스
+          MIT 라이선스입니다. 전문은 압축 안의 LICENSE 에 있습니다.
+          EOF
+            gh release create "$TAG" --draft --verify-tag --title "MacPet $VERSION (소스)" \
+              --notes-file "$RUNNER_TEMP/notes.md" "$dir/$zip" "$dir/$sum"
+            echo "::notice::드래프트 릴리스 $TAG 를 만들었습니다. 확인한 뒤 직접 공개하세요."
+            exit 0
+          fi
+          if [ "$draft" = false ]; then
+            echo "::notice::$TAG 는 이미 공개된 릴리스라 건드리지 않습니다."
+            exit 0
+          fi
+          if [ "$draft" != true ]; then
+            echo "::error::태그 $TAG 의 릴리스가 둘 이상이거나 상태를 알 수 없습니다. Releases 에서 하나만 남긴 뒤 다시 실행하세요."; exit 1
+          fi
+
+          # 이미 있는 드래프트는 고치지 않는다. 올라가 있는 두 파일을 받아 이 커밋의 것과 바이트 단위로 비교만 한다.
+          existing="$RUNNER_TEMP/existing-source"
+          gh release download "$TAG" --dir "$existing" --pattern "$zip" --pattern "$sum" || {
+            echo "::error::드래프트 $TAG 에서 $zip 과 $sum 을 내려받지 못했습니다. Releases 에서 그 드래프트를 확인해 지운 뒤 이 작업을 다시 실행하세요."; exit 1
+          }
+          for f in "$zip" "$sum"; do
+            cmp -s "$dir/$f" "$existing/$f" || {
+              echo "::error::드래프트 $TAG 에 $f 이 없거나 이 커밋의 소스와 다릅니다. 드래프트를 확인해 지운 뒤 다시 실행하세요."; exit 1
+            }
+          done
+          echo "::notice::드래프트 $TAG 의 두 파일이 이 커밋의 소스와 같아 아무것도 하지 않습니다."

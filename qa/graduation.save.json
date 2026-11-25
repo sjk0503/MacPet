@@ -1,0 +1,18 @@
+{
+ "v": 1,
+ "species": "uni",
+ "shiny": true,
+ "hatched": true,
+ "crack": 0,
+ "name": "노을이",
+ "petDay": "2024-01-01",
+ "pets": 0,
+ "lastSeen": 0,
+ "level": 9,
+ "exp": 64,
+ "done": {
+  "removed-legacy-mission": "2024-01-01T00:00:00.000Z",
+  "spotlight-calc": "2024-01-02T00:00:00.000Z",
+  "screenshot": "2024-01-03T00:00:00.000Z"
+ }
+}

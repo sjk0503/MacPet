@@ -1,0 +1,335 @@
+/* MacPet 펫 화면 — 주머니 속 자연 관찰 수첩.
+   임의의 바탕화면 위에 뜨므로 창은 투명하고, 종이 조각(이름표·말풍선·카드)만 색을 가진다 */
+:root {
+  --ink: #223d34;        /* 짙은 상록 잉크: 글자·테두리·수첩 머리 */
+  --ink-2: #4e665c;      /* 보조 글자 */
+  --paper: #fffcf1;      /* 따뜻한 상아색 종이 */
+  --paper-2: #f3eedd;    /* 표본 대지·펼친 줄 */
+  --fern: #35624e;       /* 주요 단추·완료 */
+  --amber: #e7aa40;      /* 경험치·반짝이에만 */
+  --amber-ink: #85560a;  /* 종이 위 호박색 글자 */
+  --rule: rgb(34 61 52 / 0.2);
+  --wash: rgb(34 61 52 / 0.06);
+  --on-ink-2: rgb(255 252 241 / 0.76);
+  --on-ink-rule: rgb(255 252 241 / 0.34);
+  /* 2px 도트 테두리 (모서리는 한 칸씩 비어 각진 도트 모양이 된다) */
+  --pxb: 0 -2px 0 0 var(--ink), 0 2px 0 0 var(--ink), -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink);
+  --sheet: 0 3px 0 0 rgb(34 61 52 / 0.12); /* 아래로 살짝 어긋난 뒷장 */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Helvetica Neue", sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: transparent;
+  font-family: var(--font);
+  font-weight: 500;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+input { -webkit-user-select: text; user-select: text; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+img, canvas { -webkit-user-drag: none; }
+::selection { background: rgb(231 170 64 / 0.45); color: var(--ink); }
+
+/* 무대: 오른쪽 아래에 붙인 400×560. 자식 중 눌러야 하는 것만 pointer-events 를 켠다 */
+.stage {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 400px;
+  height: 560px;
+  pointer-events: none;
+  overflow: visible;
+}
+
+/* 펫 */
+.wpet-px { image-rendering: pixelated; image-rendering: crisp-edges; display: block; }
+.wpet-mover { position: absolute; right: 24px; bottom: 44px; width: 96px; height: 96px; pointer-events: none; }
+.pet-cv { width: 96px; height: 96px; pointer-events: auto; cursor: pointer; }
+.pet-cv.is-dragging { cursor: grabbing; }
+/* 어떤 바탕화면에서도 보이도록 종이색 + 잉크 두 겹 */
+.pet-cv:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; box-shadow: 0 0 0 2px var(--paper); }
+.wpet-ground { position: absolute; left: 50%; bottom: -3px; width: 60%; height: 8px; transform: translateX(-50%); background: rgb(0 0 0 / 0.14); clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 6px 100%, 0 50%); pointer-events: none; }
+
+/* 단추 공통: 28px, 도트 테두리. 색은 변수로만 바꾼다 */
+.b-btns button, .bubble form button, .m-go, .m-set, .m-yes, .m-no, .collection-nav button {
+  --btn-bg: var(--paper);
+  --btn-fg: var(--ink);
+  --btn-hover: var(--paper-2);
+  flex: none;
+  min-height: 28px;
+  margin: 2px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--btn-bg);
+  color: var(--btn-fg);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: var(--pxb);
+  transition: background-color 0.12s ease-out, color 0.12s ease-out;
+}
+/* 한 묶음에 주요 단추는 하나 */
+.b-btns .b-go, .b-btns .b-next, .bubble form button, .m-go, .m-yes, .m-acts .m-set:only-child {
+  --btn-bg: var(--fern);
+  --btn-fg: var(--paper);
+  --btn-hover: var(--ink);
+}
+.b-btns .b-go ~ .b-next, .m-acts .m-go ~ .m-go, .m-acts:has(+ .m-confirm) .m-go {
+  --btn-bg: var(--paper);
+  --btn-fg: var(--ink);
+  --btn-hover: var(--paper-2);
+}
+.b-btns button:hover, .bubble form button:hover, .m-go:hover, .m-set:hover, .m-yes:hover, .m-no:hover, .collection-nav button:hover:not(:disabled) { background: var(--btn-hover); }
+.b-btns button:active, .bubble form button:active, .m-go:active, .m-set:active, .m-yes:active, .m-no:active, .collection-nav button:active:not(:disabled), .open-collection:active { transform: translateY(1px); }
+.chip:focus-visible, .card button:focus-visible, .bubble button:focus-visible, .bubble input:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* 꼬리표: 상태를 색과 모양 둘 다로 구분한다 */
+.tag, .b-xp {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.tag.xp, .b-xp { background: var(--amber); color: var(--ink); }
+.tag.ok { padding-right: 0; color: var(--fern); }
+.tag.lock { border: 1px dashed var(--ink-2); color: var(--ink-2); }
+
+/* 이름표 */
+.chip {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(calc(-50% + var(--cs, 0px)));
+  pointer-events: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  height: 28px;
+  padding: 0 10px;
+  border: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  box-shadow: var(--pxb);
+  transition: background-color 0.12s ease-out, color 0.12s ease-out;
+}
+.chip:hover { background: var(--paper-2); }
+.chip.is-open { background: var(--ink); color: var(--paper); }
+.chip .lv { color: var(--amber-ink); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.chip.is-open .lv { color: var(--amber); }
+.chip .dot { min-width: 18px; height: 18px; padding: 0 4px; display: grid; place-items: center; background: var(--fern); color: var(--paper); font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.chip.is-open .dot { background: var(--paper); color: var(--ink); }
+.chip.is-open:focus-visible { box-shadow: var(--pxb), 0 0 0 3px var(--paper); outline-offset: 4px; }
+
+/* 말풍선 */
+.bubble {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  width: max-content;
+  max-width: 200px;
+  transform: translateX(calc(-50% + var(--shift, 0px)));
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  word-break: keep-all; /* 한글이 낱말 중간에서 끊기지 않게 */
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+  padding: 8px 11px;
+  text-align: center;
+  box-shadow: var(--pxb);
+  pointer-events: none;
+  z-index: 2;
+  animation: bubble-in 0.18s var(--ease) both;
+}
+/* 꼬리: 테두리를 한 칸 열고(::before) 두 단짜리 도트 쐐기(::after)를 단다 */
+.bubble::before, .bubble::after { content: ""; position: absolute; left: var(--tail, 50%); top: 100%; height: 2px; background: var(--paper); }
+.bubble::before { width: 8px; margin-left: -4px; }
+.bubble::after { width: 4px; margin-left: -2px; margin-top: 2px; box-shadow: -2px 0 0 0 var(--ink), 2px 0 0 0 var(--ink), 0 2px 0 0 var(--ink); }
+.bubble.is-ui { pointer-events: auto; text-wrap: wrap; }
+.bubble.is-ui:not(.has-form) { width: 260px; max-width: 260px; text-align: left; padding: 10px 13px 11px; }
+.b-hd { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding-right: 26px; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--fern); }
+.b-name { min-width: 0; }
+.b-step { flex: none; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.b-title { margin-top: 2px; font-size: 15px; font-weight: 700; line-height: 1.35; }
+.b-xp { margin-top: 7px; }
+.b-body { margin: 6px 0 0; font-size: 13.5px; font-weight: 500; line-height: 1.5; }
+.b-btns { display: flex; flex-wrap: wrap; gap: 6px 4px; margin: 10px -2px -2px; }
+.b-note { margin-top: 9px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+.b-x { position: absolute; top: 5px; right: 5px; width: 28px; height: 28px; padding: 0 0 2px; border: 0; background: transparent; color: var(--ink-2); font-size: 18px; font-weight: 500; line-height: 1; transition: background-color 0.12s ease-out, color 0.12s ease-out; }
+.b-x:hover { background: var(--ink); color: var(--paper); }
+.bubble .b-x:focus-visible { outline-offset: -2px; }
+.bubble input:focus-visible { outline-color: var(--fern); outline-offset: 2px; }
+/* 이름 짓기 */
+.bubble.has-form { max-width: 228px; padding: 10px 12px 10px; text-align: left; }
+.bubble form { display: flex; align-items: center; gap: 8px; margin: 6px -2px 0; }
+.bubble input { flex: none; width: 124px; min-width: 0; height: 28px; margin: 2px; padding: 0 8px; border: 0; border-radius: 0; font: inherit; font-size: 13px; font-weight: 500; background: var(--paper); color: var(--ink); caret-color: var(--fern); box-shadow: var(--pxb), inset 0 2px 0 0 var(--wash); }
+.stage.card-open .bubble { display: none; }
+@keyframes bubble-in { from { opacity: 0; } to { opacity: 1; } }
+
+/* 카드: 수첩 한 장. 미션 목록과 졸업 앨범이 같은 틀을 쓴다 */
+.card {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 12px;
+  bottom: 170px;
+  display: flex;
+  flex-direction: column;
+  background: var(--paper);
+  box-shadow: var(--pxb), var(--sheet);
+  pointer-events: auto;
+  animation: bubble-in 0.18s var(--ease) both;
+}
+.card-done { flex: none; margin: 0; padding: 6px 14px; background: var(--fern); color: var(--paper); font-size: 12.5px; font-weight: 600; text-align: center; }
+
+/* 수첩 머리: 잉크 바탕에 이름·레벨·경험치 */
+.card-hd {
+  position: relative;
+  flex: none;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  column-gap: 10px;
+  padding: 9px 10px 11px 14px;
+  background: var(--ink);
+  color: var(--paper);
+}
+.card-hd b { grid-area: 1 / 1; display: block; min-width: 0; font-size: 17px; font-weight: 700; line-height: 1.3; letter-spacing: -0.01em; overflow-wrap: anywhere; }
+.card-hd .sub { grid-area: 1 / 2; display: block; min-width: 0; font-size: 13px; font-weight: 600; line-height: 1.4; color: var(--amber); font-variant-numeric: tabular-nums; }
+.card-hd .wpet-bar { grid-area: 2 / 1 / auto / -1; align-self: center; margin: 8px 4px 0 0; }
+/* 막대 아래 한 줄: 왼쪽에 남은 경험치, 오른쪽에 미션 진행(앨범 단추가 있으면 그 왼쪽) */
+.card-hd .nx, .card-hd .prog { grid-area: 3 / 1 / auto / 3; align-self: center; margin-top: 7px; font-size: 12px; line-height: 1.4; color: var(--on-ink-2); font-variant-numeric: tabular-nums; }
+.card-hd .nx { justify-self: start; }
+.card-hd .prog { justify-self: end; }
+.card-hd:not(:has(.open-collection)) .prog { grid-column-end: -1; margin-right: 4px; }
+.card-x { grid-area: 1 / 3; justify-self: end; align-self: center; width: 28px; height: 28px; padding: 0 0 2px; border: 0; background: transparent; color: var(--paper); font-size: 20px; font-weight: 500; line-height: 1; box-shadow: inset 0 0 0 1px var(--on-ink-rule); transition: background-color 0.12s ease-out, color 0.12s ease-out; }
+.card-x:hover { background: var(--paper); color: var(--ink); }
+.open-collection { grid-area: 3 / 3; justify-self: end; align-self: center; min-height: 28px; margin: 7px 0 0; padding: 0 10px; border: 0; background: transparent; color: var(--paper); font-size: 12.5px; font-weight: 600; line-height: 1.2; white-space: nowrap; font-variant-numeric: tabular-nums; box-shadow: inset 0 0 0 1px var(--on-ink-rule); pointer-events: auto; transition: background-color 0.12s ease-out, color 0.12s ease-out; }
+.open-collection:hover { background: var(--paper); color: var(--ink); }
+.card .card-hd button:focus-visible { outline-color: var(--amber); outline-offset: 2px; }
+
+/* 20칸 경험치 막대 */
+.wpet-bar { display: grid; grid-template-columns: repeat(20, 1fr); gap: 2px; height: 10px; }
+.wpet-bar i { background: rgb(255 252 241 / 0.16); }
+.wpet-bar i.on { background: var(--amber); }
+
+.card-body { position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 0 0 10px; scrollbar-color: rgb(34 61 52 / 0.34) transparent; }
+.card-body::-webkit-scrollbar { width: 10px; }
+.card-body::-webkit-scrollbar-thumb { background: rgb(34 61 52 / 0.34); background-clip: padding-box; border: 3px solid transparent; }
+.card-body::-webkit-scrollbar-thumb:hover { background-color: var(--ink-2); }
+.card-body::-webkit-scrollbar-track { background: transparent; }
+/* 임무 목록 스크롤: 좁고 또렷한 막대, 좌우 같은 여백 (도감은 위 기본값 유지) */
+@supports selector(::-webkit-scrollbar) {
+  .card-body:not(.collection-body) { scrollbar-color: auto; scrollbar-gutter: stable both-edges; }
+  .card-body:not(.collection-body)::-webkit-scrollbar { width: 6px; }
+  .card-body:not(.collection-body)::-webkit-scrollbar-track { background: var(--wash); }
+  .card-body:not(.collection-body)::-webkit-scrollbar-thumb { background: var(--ink-2); border: 0; }
+  .card-body:not(.collection-body)::-webkit-scrollbar-thumb:hover { background: var(--ink); }
+  @supports not (scrollbar-gutter: stable both-edges) {
+    .card-body:not(.collection-body) { padding-left: 6px; }
+  }
+}
+@supports not selector(::-webkit-scrollbar) {
+  .card-body:not(.collection-body) { scrollbar-width: thin; scrollbar-color: var(--ink-2) var(--wash); scrollbar-gutter: stable both-edges; }
+}
+
+/* 미션 목록 */
+.m-group { display: flex; align-items: center; gap: 8px; margin: 14px 14px 2px; font-size: 12px; font-weight: 600; line-height: 1.4; color: var(--fern); }
+.m-group::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--rule); }
+.m-item { margin: 0 8px; padding: 0 6px; border-bottom: 1px solid var(--rule); }
+.m-item:last-child, .m-item:has(+ .m-group) { border-bottom-color: transparent; }
+.m-item.is-open { background: var(--paper-2); }
+.m-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: calc(100% + 12px); min-height: 38px; margin: 0 -6px; padding: 8px 6px; border: 0; background: transparent; text-align: left; font-size: 14px; font-weight: 500; line-height: 1.35; word-break: keep-all; overflow-wrap: anywhere; transition: background-color 0.12s ease-out; }
+.m-row:hover { background: var(--wash); }
+.card .m-row:focus-visible { outline-offset: -2px; }
+.m-row .t { flex: 1 1 auto; min-width: 0; }
+.m-item.is-open .m-row .t { font-weight: 700; }
+.m-item.is-done .m-row .t { color: var(--ink-2); }
+.m-detail { padding: 0 0 12px; font-size: 13px; font-weight: 500; line-height: 1.55; word-break: keep-all; overflow-wrap: anywhere; }
+.m-item.is-done .m-detail { color: var(--ink-2); }
+.m-detail p { margin: 0 0 6px; }
+.m-detail ol { margin: 0 0 8px; padding-left: 20px; }
+.m-detail li { margin-bottom: 2px; }
+.m-detail li::marker { color: var(--fern); font-weight: 700; font-variant-numeric: tabular-nums; }
+.m-lock { color: var(--ink-2); }
+.m-tip { color: var(--fern); font-weight: 600; }
+.m-item.is-done .m-detail p:last-child { margin-bottom: 0; }
+.m-acts, .m-confirm { display: flex; flex-wrap: wrap; gap: 6px 4px; margin: 10px -2px 0; }
+.m-skip { display: block; min-height: 28px; margin: 6px 0 -6px; padding: 0; border: 0; background: transparent; font-size: 12px; font-weight: 500; color: var(--ink-2); text-decoration: underline; text-decoration-color: var(--rule); text-decoration-thickness: 1px; text-underline-offset: 3px; transition: color 0.12s ease-out; }
+.m-skip:hover { color: var(--ink); text-decoration-color: currentColor; }
+.card .m-skip:focus-visible { outline-offset: 0; }
+
+/* 졸업 앨범 (collection.js 가 #card 를 채운다): 3×2 표본 대지 */
+.collection-hd .sub { font-size: 12px; font-weight: 500; color: var(--on-ink-2); }
+.collection-body { display: flex; flex-direction: column; }
+.collection-list { list-style: none; margin: 0; padding: 10px 12px 6px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px 8px; }
+.collection-entry { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+.collection-pic { position: relative; flex: none; width: 72px; height: 72px; margin-bottom: 14px; padding: 3px; border: 1px solid var(--rule); background: var(--paper-2); }
+/* 대지 모서리를 잡는 도트 귀퉁이 두 개 */
+.collection-pic::before, .collection-pic::after { content: ""; position: absolute; width: 7px; height: 7px; border: 0 solid var(--ink); pointer-events: none; }
+.collection-pic::before { top: -3px; left: -3px; border-width: 2px 0 0 2px; }
+.collection-pic::after { right: -3px; bottom: -3px; border-width: 0 2px 2px 0; }
+.collection-entry:has(.collection-shiny) .collection-pic::before, .collection-entry:has(.collection-shiny) .collection-pic::after { border-color: var(--amber); }
+.collection-cv { width: 64px; height: 64px; }
+.collection-pic.is-unknown { display: grid; place-items: center; border-style: dashed; border-color: var(--ink-2); background: transparent; color: var(--ink-2); font-size: 22px; font-weight: 600; }
+/* 종별 대지 종이: 무광 옅은 색지. 등록되지 않은 종은 기본 대지(--paper-2) 그대로 */
+.collection-entry:is([data-species="seal"], [data-species="peng"]) .collection-pic:not(.is-unknown) { background: #e8eeeb; }
+.collection-entry:is([data-species="uni"], [data-species="rabbit"]) .collection-pic:not(.is-unknown) { background: #f5e9e2; }
+.collection-entry:is([data-species="panda"], [data-species="bam"]) .collection-pic:not(.is-unknown) { background: #e9eedb; }
+.collection-entry:is([data-species="chick"], [data-species="hammy"]) .collection-pic:not(.is-unknown) { background: #f7ecd0; }
+.collection-name { max-width: 100%; font-size: 13px; font-weight: 600; line-height: 1.35; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+/* 반짝이: 대지 오른쪽 아래 모서리에 붙인 가로 색인표. 스프라이트 캔버스(y4..68) 바로 아래에서 시작해 이름 위에서 끝난다 */
+.collection-shiny { position: absolute; top: 68px; left: 50%; max-width: 46px; padding: 0 4px; background: var(--amber); color: var(--ink); font-size: 12px; font-weight: 700; line-height: 15px; white-space: nowrap; overflow: hidden; }
+.collection-date { margin-top: 1px; font-size: 12px; font-weight: 500; line-height: 1.4; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.collection-empty { margin: auto 28px; padding: 24px 0; font-size: 13.5px; font-weight: 500; line-height: 1.6; color: var(--ink-2); text-align: center; word-break: keep-all; text-wrap: balance; }
+.collection-body:focus-visible { outline: 2px solid var(--ink); outline-offset: -4px; }
+.collection-nav { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px 7px; border-top: 1px solid var(--rule); }
+.collection-nav button { min-width: 56px; }
+.collection-nav button:disabled { opacity: 0.38; cursor: default; }
+.collection-page { font-size: 12.5px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+
+/* 효과 (엔진이 host 에 붙인다) */
+.wpet-fx { position: absolute; pointer-events: none; image-rendering: pixelated; z-index: 3; animation: wpet-float 1.1s ease-out forwards; }
+.wpet-fx.wpet-z { animation: wpet-z 1.8s ease-out forwards; }
+.wpet-fx.wpet-txt { font-weight: 700; font-size: 13px; color: var(--amber); text-shadow: 0 2px 0 var(--ink), 0 -2px 0 var(--ink), 2px 0 0 var(--ink), -2px 0 0 var(--ink); white-space: nowrap; font-variant-numeric: tabular-nums; animation-duration: 1.5s; }
+@keyframes wpet-float { 0% { opacity: 0; transform: translate(0, 6px) scale(0.6); } 15% { opacity: 1; transform: translate(0, 0) scale(1); } 100% { opacity: 0; transform: translate(var(--dx, 0px), -46px) scale(1); } }
+@keyframes wpet-z { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; transform: translate(18px, -40px); } }
+.wpet-food { position: absolute; bottom: 4px; image-rendering: pixelated; pointer-events: none; animation: wpet-drop 0.35s steps(4) both; }
+@keyframes wpet-drop { from { transform: translateY(-30px); opacity: 0; } to { transform: none; opacity: 1; } }
+.wpet-flash { position: absolute; inset: 0; background: var(--paper); z-index: 80; pointer-events: none; animation: wpet-flash 0.7s ease-out forwards; }
+@keyframes wpet-flash { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .bubble, .card { animation: none; }
+  .chip, .stage button, .stage input { transition: none; }
+  .wpet-fx, .wpet-fx.wpet-z { animation: wpet-fade 1.2s ease-out forwards; }
+  @keyframes wpet-fade { 0% { opacity: 1; } 100% { opacity: 0; } }
+  .wpet-flash { animation-duration: 0.2s; }
+  .wpet-food { animation: none; }
+}

@@ -1,0 +1,105 @@
+[
+ {
+  "until": "(function(){const c=document.querySelector('#chip');return c.textContent.includes('보리')&&c.querySelector('.lv').textContent==='LV4'&&!!document.querySelector('#bubble .b-go');})()",
+  "timeout": 20,
+  "name": "LV4 저장을 이어 받고 인사가 끝나 다음 미션을 권함 (연출 대기열이 빔)"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#card'),r=document.querySelector('.m-item[data-mission-id=mission-control] > .m-row');return !c.hidden&&c.dataset.view!=='collection'&&!!r&&r.tagName==='BUTTON'&&r.getAttribute('aria-expanded')==='false'&&!!document.querySelector('.open-collection');})()",
+  "timeout": 10,
+  "name": "showMissions 로 미션 카드가 열리고 '데스크탑 하나 더 만들기' 줄은 접힌 단추"
+ },
+ {
+  "eval": "(function(){const r=document.querySelector('.m-item[data-mission-id=mission-control] > .m-row');r.scrollIntoView({block:'center'});r.focus();return 'focused';})()"
+ },
+ {
+  "until": "(function(){const r=document.querySelector('.m-item[data-mission-id=mission-control] > .m-row');return !!r&&document.activeElement===r&&r.getAttribute('aria-expanded')==='false';})()",
+  "timeout": 5,
+  "name": "접힌 미션 줄이 키보드 포커스를 받음"
+ },
+ {
+  "type": "\r"
+ },
+ {
+  "until": "(function(){const i=document.querySelector('.m-item[data-mission-id=mission-control]'),r=i&&i.querySelector(':scope > .m-row');return !!r&&r.getAttribute('aria-expanded')==='true'&&!!i.querySelector('.m-detail')&&document.activeElement===r&&document.querySelectorAll('.m-row[aria-expanded=true]').length===1;})()",
+  "timeout": 5,
+  "name": "return 키로 미션 줄이 펼쳐지고, 다시 그린 뒤에도 포커스가 같은 미션 줄에 남음"
+ },
+ {
+  "eval": "(document.querySelector('.open-collection').scrollIntoView({block:'center'}), 'scrolled')"
+ },
+ {
+  "tap": ".open-collection"
+ },
+ {
+  "until": "!!document.querySelector('#card[data-view=collection]:not([hidden])') && document.querySelectorAll('.collection-entry').length === 6 && !document.querySelector('.m-item')",
+  "timeout": 5,
+  "name": "미션 카드의 앨범 단추를 누르면 졸업 앨범이 열리고 7마리 중 첫 쪽 6칸이 보임"
+ },
+ {
+  "expect": "(function(){const p=document.querySelector('.collection-prev'),n=document.querySelector('.collection-next');return document.querySelector('.collection-page').textContent.trim()==='1 / 2'&&p.disabled&&!n.disabled&&document.querySelector('.collection-entry .collection-name').textContent==='무지개솜사탕구름';})()",
+  "name": "첫 쪽: 1 / 2, 이전은 꺼지고 다음은 켜짐, 가장 최근 졸업이 맨 앞"
+ },
+ {
+  "expect": "(function(){const b=document.querySelector('.collection-body'),l=document.querySelector('.collection-list');return b.scrollWidth<=b.clientWidth&&l.scrollWidth<=l.clientWidth;})()",
+  "name": "앨범 목록이 가로로 넘치지 않음"
+ },
+ {
+  "expect": "(function(){const n=Array.from(document.querySelectorAll('.collection-name')).find(x=>x.textContent==='무지개솜사탕구름');if(!n)return false;const e=n.closest('.collection-entry'),a=n.getBoundingClientRect(),b=e.getBoundingClientRect();if(!(a.width>0&&a.height>0&&a.left>=b.left-0.5&&a.right<=b.right+0.5&&a.top>=b.top-0.5&&a.bottom<=b.bottom+0.5&&e.scrollWidth<=e.clientWidth))return false;return Array.from(document.querySelectorAll('.collection-entry')).every(o=>{if(o===e)return true;const r=o.getBoundingClientRect();return a.right<=r.left+0.5||a.left>=r.right-0.5||a.bottom<=r.top+0.5||a.top>=r.bottom-0.5;});})()",
+  "name": "여덟 글자 한글 이름이 자기 칸 안에 들어가고 옆 칸을 침범하지 않음"
+ },
+ {
+  "expect": "(function(){const m=document.querySelectorAll('.collection-shiny');if(m.length!==1)return false;const e=m[0].closest('.collection-entry'),a=m[0].getBoundingClientRect(),b=e.getBoundingClientRect();return e.querySelector('.collection-name').textContent==='무지개솜사탕구름'&&a.width>0&&a.left>=b.left-0.5&&a.right<=b.right+0.5;})()",
+  "name": "반짝이 표시는 반짝이 펫 한 칸에만 있고 긴 이름과 함께 칸 안에 들어감"
+ },
+ {
+  "expect": "(function(){const c=document.querySelector('#card').getBoundingClientRect();return ['.collection-close','.collection-prev','.collection-next'].every(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=c.left&&r.right<=c.right&&r.top>=c.top&&r.bottom<=c.bottom&&document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===e;});})()",
+  "name": "첫 쪽: 닫기·이전·다음 단추가 카드 안에 있고 가려지지 않음"
+ },
+ {
+  "eval": "(document.querySelector('.collection-next').focus(), 'focused')"
+ },
+ {
+  "until": "document.activeElement === document.querySelector('.collection-next')",
+  "timeout": 5,
+  "name": "다음 단추가 키보드 포커스를 받음"
+ },
+ {
+  "type": "\r"
+ },
+ {
+  "until": "(function(){const p=document.querySelector('.collection-prev'),n=document.querySelector('.collection-next'),e=document.querySelectorAll('.collection-entry');return document.querySelector('.collection-page').textContent.trim()==='2 / 2'&&e.length===1&&e[0].querySelector('.collection-name').textContent==='첫째'&&n.disabled&&!p.disabled&&document.activeElement===p;})()",
+  "timeout": 5,
+  "name": "return 키로 마지막 쪽: 정확히 1칸, 다음이 꺼지고 포커스는 켜진 이전 단추로 옮겨 감"
+ },
+ {
+  "expect": "(function(){const c=document.querySelector('#card').getBoundingClientRect();return ['.collection-close','.collection-prev','.collection-next'].every(s=>{const e=document.querySelector(s);if(!e)return false;const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&r.left>=c.left&&r.right<=c.right&&r.top>=c.top&&r.bottom<=c.bottom&&document.elementFromPoint(r.left+r.width/2,r.top+r.height/2)===e;});})()",
+  "name": "마지막 쪽: 닫기·이전·다음 단추가 카드 안에 있고 가려지지 않음"
+ },
+ {
+  "type": "\r"
+ },
+ {
+  "until": "(function(){const p=document.querySelector('.collection-prev'),n=document.querySelector('.collection-next');return document.querySelector('.collection-page').textContent.trim()==='1 / 2'&&document.querySelectorAll('.collection-entry').length===6&&p.disabled&&!n.disabled&&document.activeElement===n;})()",
+  "timeout": 5,
+  "name": "포커스가 옮겨 간 이전 단추에서 return 키 → 첫 쪽 6칸, 이전이 꺼지고 포커스는 다음 단추로 돌아옴"
+ },
+ {
+  "tap": ".collection-close"
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#card'),o=document.querySelector('.open-collection');return !c.hidden&&c.dataset.view!=='collection'&&!!document.querySelector('.m-item')&&!document.querySelector('.collection-entry')&&!!o&&document.activeElement===o;})()",
+  "timeout": 5,
+  "name": "앨범 닫기 단추를 누르면 미션 카드로 돌아오고 포커스가 앨범 단추로 되돌아감"
+ },
+ {
+  "expectSave": "s.v===1&&s.hatched===true&&s.name==='보리'&&s.level===4&&Object.keys(s.done||{}).length===3&&Array.isArray(s.collection)&&s.collection.length===7&&s.collection[6].name==='무지개솜사탕구름'&&s.collection[6].shiny===true&&s.collection[0].name==='첫째'",
+  "name": "둘러보는 동안 저장은 그대로: LV4·끝낸 미션 3개·졸업 기록 7건"
+ }
+]

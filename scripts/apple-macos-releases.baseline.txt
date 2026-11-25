@@ -1,0 +1,8 @@
+# Apple Developer Releases RSS에서 관찰된 macOS 빌드 목록.
+# 상태: acknowledged(확인함) — 이 앱으로 "테스트함"을 뜻하지 않는다.
+# 출처: https://developer.apple.com/news/releases/rss/releases.rss (2026-11-24 관찰본)
+# 새 빌드를 확인한 뒤 한 줄에 하나씩 추가한다. 형식은 피드 제목 그대로.
+macOS 27.3 beta 2 (26C5047e)
+macOS 27.2.1 (26B131)
+macOS 27.0.1 (26A434)
+macOS 26.6.2 (25G83)

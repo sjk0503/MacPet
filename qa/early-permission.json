@@ -1,0 +1,153 @@
+[
+ {
+  "native": {
+   "type": "command",
+   "name": "reset"
+  }
+ },
+ {
+  "wait": 1.2
+ },
+ {
+  "expect": "document.querySelector('#chip').textContent.trim()==='알' && !document.querySelector('#bubble input')",
+  "name": "처음 알에서 시작"
+ },
+ {
+  "eval": "(function(){const c=document.querySelector('#cv');c.click();c.click();c.click();window.MacPet.onNative({type:'command',name:'reset'});return true})()"
+ },
+ {
+  "wait": 1.6
+ },
+ {
+  "expect": "!document.querySelector('#bubble input') && document.querySelector('#chip').textContent.trim()==='알'",
+  "name": "세 번째 탭 직후 초기화해도 420ms 부화 타이머가 이름 칸을 열지 않고 알이 남음"
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": true
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "document.querySelector('#chip').textContent.trim()==='알' && !document.querySelector('#bubble input')",
+  "name": "부화 전 권한 허용과 중복 미션 신호가 알을 부화시키지 않음"
+ },
+ {
+  "tap": "#cv",
+  "count": 3,
+  "gap": 0.7
+ },
+ {
+  "wait": 2.4
+ },
+ {
+  "expect": "!!document.querySelector('#bubble input')",
+  "name": "실제 탭 세 번으로 다시 부화 → 이름 칸"
+ },
+ {
+  "tap": "#bubble input"
+ },
+ {
+  "type": "Mo"
+ },
+ {
+  "tap": "#bubble form button"
+ },
+ {
+  "wait": 1.5
+ },
+ {
+  "expect": "!document.querySelector('#bubble input') && document.querySelector('#chip').textContent.includes('LV')",
+  "name": "이름을 지어 펫이 됨"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "eval": "(function(){window.__qaRow=()=>Array.from(document.querySelectorAll('.m-item')).find(i=>{const t=i.querySelector('.t').textContent;return t.includes('손쉬운 사용')&&t.includes('권한 주기')});return true})()"
+ },
+ {
+  "expect": "(function(){const r=window.__qaRow();return !!r&&r.classList.contains('is-done')&&r.querySelector('.tag').textContent==='✓ 완료'&&document.querySelector('.card-hd .sub').textContent.includes('LV 2')&&document.querySelector('.wpet-bar').getAttribute('aria-label')==='경험치 15 / 30'})()",
+  "name": "이름을 지은 직후 기존 신뢰로 권한 미션이 이미 완료되고 40 EXP 가 한 번만 반영됨(LV 2, 15/30)"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": true
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "grant-accessibility"
+  }
+ },
+ {
+  "wait": 0.3
+ },
+ {
+  "expect": "(function(){const r=window.__qaRow();return !!r&&r.classList.contains('is-done')&&r.querySelector('.tag').textContent==='✓ 완료'&&document.querySelector('.card-hd .sub').textContent.includes('LV 2')&&document.querySelector('.wpet-bar').getAttribute('aria-label')==='경험치 15 / 30'})()",
+  "name": "이후 중복 권한·미션 신호에도 완료 상태와 EXP 가 그대로"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "wait": 0.3
+ },
+ {
+  "expect": "!document.querySelector('#card').hidden",
+  "name": "완료 뒤 showMissions 도 카드를 닫지 않음"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "toggleMissions"
+  }
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "document.querySelector('#card').hidden",
+  "name": "예전 toggleMissions 는 열린 카드를 닫음"
+ }
+]

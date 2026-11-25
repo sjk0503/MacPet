@@ -1,0 +1,104 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: ["**"] # 포크의 기본 브랜치 이름이 달라도 돌도록 모든 브랜치
+  workflow_dispatch:
+  workflow_call: # release.yml 이 태그 커밋을 같은 검사로 확인할 때 부른다
+  schedule:
+    - cron: "23 3 * * 1" # 매주 월요일 03:23 UTC. 새 macOS/Xcode 이미지에서 깨지는지 미리 본다.
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }} # 태그(릴리스) 검사는 중간에 끊지 않는다
+
+jobs:
+  test:
+    name: test + native package (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # 러너 목록: https://docs.github.com/en/actions/reference/runners/github-hosted-runners
+        os: [macos-15-intel, macos-26, macos-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Record environment
+        run: |
+          {
+            echo "### ${{ matrix.os }}"
+            echo '```'
+            echo "macOS: $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
+            echo "arch: $(uname -m)"
+            xcodebuild -version
+            swift --version
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Web engine tests (node --test)
+        shell: bash
+        run: |
+          shopt -s failglob
+          node --test Tests/Web/*.test.js
+      - name: Apple release checker tests
+        run: python3 -I scripts/tests/test_check_apple_releases.py
+      - name: Swift tests (includes mission catalog validation)
+        run: swift test
+      # 릴리스 주소는 이 저장소(포크면 포크) 것을 넣고, 패키징 뒤 Info.plist 에 그대로 들어갔는지 본다.
+      - name: Native package (ad-hoc signed)
+        env:
+          MACPET_RELEASES_URL: https://github.com/${{ github.repository }}/releases
+        run: |
+          MACPET_BUILD_DIR="$RUNNER_TEMP/native" MACPET_SIGN_ID=- bash scripts/build-app.sh
+          got=$(/usr/libexec/PlistBuddy -c 'Print :MacPetReleasesURL' "$RUNNER_TEMP/native/MacPet.app/Contents/Info.plist")
+          [ "$got" = "$MACPET_RELEASES_URL" ] || { echo "::error::MacPetReleasesURL mismatch"; exit 1; }
+          # MIT 라이선스 전문이 번들에 바이트 그대로 들어갔는지 본다.
+          cmp LICENSE "$RUNNER_TEMP/native/MacPet.app/Contents/Resources/LICENSE.txt" || { echo "::error::bundled LICENSE.txt differs from LICENSE"; exit 1; }
+      # AppKit 창과 WKWebView 를 실제로 띄우므로 러너에 창 세션이 있어야 한다.
+      # 시나리오당 제한 시간과 실패 로그 출력은 qa.sh 가 맡는다(MACPET_QA_TIMEOUT, 기본 150초).
+      - name: GUI QA scenarios (AppKit + WKWebView, scripts/qa.sh)
+        if: matrix.os == 'macos-latest'
+        run: bash scripts/qa.sh
+
+  release:
+    name: universal release package
+    needs: test
+    runs-on: macos-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - name: Record environment
+        run: |
+          {
+            echo "### universal release"
+            echo '```'
+            echo "macOS: $(sw_vers -productVersion) ($(sw_vers -buildVersion))"
+            echo "arch: $(uname -m)"
+            xcodebuild -version
+            swift --version
+            echo '```'
+          } | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Build universal ZIP (ad-hoc signed, not notarized)
+        env:
+          MACPET_RELEASES_URL: https://github.com/${{ github.repository }}/releases
+        run: |
+          set -o pipefail
+          MACPET_BUILD_DIR="$RUNNER_TEMP/rel" bash scripts/release.sh
+          got=$(/usr/libexec/PlistBuddy -c 'Print :MacPetReleasesURL' "$RUNNER_TEMP/rel/universal/MacPet.app/Contents/Info.plist")
+          [ "$got" = "$MACPET_RELEASES_URL" ] || { echo "::error::MacPetReleasesURL mismatch"; exit 1; }
+          # 실제로 만들어진 ZIP 안의 앱에서 꺼낸 LICENSE.txt 가 저장소 LICENSE 와 바이트 단위로 같은지 본다.
+          version=$(head -n 1 VERSION)
+          unzip -p "$RUNNER_TEMP/rel/release/MacPet-$version-macos-universal.zip" 'MacPet.app/Contents/Resources/LICENSE.txt' | cmp LICENSE - || { echo "::error::archived LICENSE.txt differs from LICENSE"; exit 1; }
+      - name: Build source release archive
+        run: MACPET_BUILD_DIR="$RUNNER_TEMP/rel" python3 scripts/source-release.py
+      # 산출물은 이 러너의 임시 폴더에만 두고 GitHub 에 업로드하지 않는다.
+      - name: Verify checksum (local to this runner)
+        run: cd "$RUNNER_TEMP/rel/release" && ls -l && shasum -a 256 -c ./*.sha256

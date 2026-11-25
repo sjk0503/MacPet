@@ -1,0 +1,193 @@
+[
+ {
+  "wait": 4.6
+ },
+ {
+  "expect": "!!document.querySelector('#bubble .b-go') && document.querySelector('#bubble').textContent.includes('스크린샷')",
+  "name": "실행 직후 인사 뒤 다음 미션(스크린샷)을 권함"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "screenshot"
+  }
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "copy"
+  }
+ },
+ {
+  "wait": 1.2
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('스크린샷 찍기 성공')",
+  "name": "연달아 온 두 미션 중 첫 성공 문구"
+ },
+ {
+  "wait": 26
+ },
+ {
+  "expect": "document.querySelector('#chip').textContent.includes('LV5')",
+  "name": "두 미션 경험치가 모두 들어가 LV5"
+ },
+ {
+  "expect": "!!document.querySelector('#bubble .b-go') && document.querySelector('#bubble').textContent.includes('화면 모드')",
+  "name": "연출이 끝나고 다음 미션(화면 모드)을 권함"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "appearance"
+  }
+ },
+ {
+  "wait": 9
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "mission-control"
+  }
+ },
+ {
+  "wait": 9.5
+ },
+ {
+  "expect": "!!document.querySelector('#bubble .b-go') && document.querySelector('#bubble').textContent.includes('권한 주기')",
+  "name": "기본기를 다 끝내면 권한 미션을 권함"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "toggleMissions"
+  }
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "expect": "!document.querySelector('#card').hidden",
+  "name": "메뉴 명령으로 카드 열림"
+ },
+ {
+  "eval": "(window.__tag = function(t){ var e = Array.from(document.querySelectorAll('.m-item')).find(function(x){ return x.textContent.includes(t); }); return e ? e.querySelector('.tag').textContent : null; }, 'ok')"
+ },
+ {
+  "expect": "window.__tag('⌘ Tab') === '권한 필요'",
+  "name": "권한이 없으면 단축키 미션은 '권한 필요'"
+ },
+ {
+  "expect": "document.querySelector('.m-item.is-open .m-detail').textContent.includes('권한 요청하기') && !document.querySelector('.m-item.is-open .m-skip')",
+  "name": "권한 미션에서는 권한을 요청할 수 있고 직접 완료 버튼은 없음"
+ },
+ {
+  "native": { "type": "mission", "id": "grant-accessibility" }
+ },
+ {
+  "expect": "window.__tag('권한 주기').includes('EXP')",
+  "name": "권한 허용 전에 온 완료 신호는 보상을 주지 않음"
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": true
+  }
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "window.__tag('⌘ Tab').includes('EXP')",
+  "name": "권한이 생기면 단축키 미션이 풀림"
+ },
+ {
+  "native": { "type": "mission", "id": "grant-accessibility" }
+ },
+ {
+  "expect": "window.__tag('권한 주기') === '✓ 완료' && !document.querySelector('.m-item.is-open .m-set')",
+  "name": "권한 허용 후 미션 완료, 설정 버튼이 사라짐"
+ },
+ {
+  "native": {
+   "type": "permission",
+   "name": "accessibility",
+   "granted": false
+  }
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "window.__tag('⌘ Tab') === '권한 필요'",
+  "name": "권한이 사라지면 다시 잠김"
+ },
+ {
+  "expect": "window.__tag('권한 주기') === '권한 필요' && document.querySelector('.m-item.is-open .m-go').textContent === '권한 요청하기' && document.querySelector('.m-item.is-open .m-set').textContent === '설정 열기'",
+  "name": "권한을 철회하면 완료한 미션에서도 다시 요청하거나 설정을 열 수 있음"
+ },
+ {
+  "eval": "(document.querySelector('.card-body').scrollTop = 99999, 'scrolled')"
+ },
+ {
+  "wait": 0.3
+ },
+ {
+  "tap": ".card-body > .m-item:last-child .m-row"
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "!!document.querySelector('.card-body > .m-item:last-child .m-detail')",
+  "name": "카드 맨 아래 미션을 눌러 펼침"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "toggleMissions"
+  }
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "document.querySelector('#card').hidden",
+  "name": "메뉴 명령으로 카드 닫힘"
+ },
+ {
+  "wait": 9
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "devCompleteNext"
+  }
+ },
+ {
+  "wait": 1.0
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('성공')",
+  "name": "개발 메뉴: 다음 미션 완료 처리"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "reset"
+  }
+ },
+ {
+  "wait": 1.6
+ },
+ {
+  "expect": "document.querySelector('#chip').textContent.trim() === '알'",
+  "name": "처음부터 다시 → 알 상태"
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('알이 도착')",
+  "name": "처음부터 다시 → 알 인사말"
+ }
+]

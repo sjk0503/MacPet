@@ -1,0 +1,279 @@
+[
+  {
+    "id": "spotlight-calc",
+    "group": "기본기",
+    "title": "Spotlight로 계산기 열기",
+    "why": "앱 이름만 쳐서 무엇이든 바로 열 수 있어요. 맥에서 가장 자주 쓰는 기능이에요.",
+    "steps": [
+      "⌘(command) + 스페이스 바를 함께 눌러요",
+      "검색 창에 ‘계산기’라고 쳐요",
+      "return 키를 누르면 계산기가 열려요"
+    ],
+    "after": "Spotlight에 12*34 처럼 치면 계산기를 열지 않아도 답이 나와요.",
+    "xp": 30,
+    "trigger": { "type": "appOpen", "bundleId": "com.apple.calculator" }
+  },
+  {
+    "id": "screenshot",
+    "group": "기본기",
+    "title": "스크린샷 찍기",
+    "why": "화면을 그대로 사진으로 남겨요. 찍은 파일은 데스크탑에 저장돼요.",
+    "steps": [
+      "⌘(command) + ⇧(shift) + 3 을 함께 누르면 화면 전체가 찍혀요",
+      "⌘ + ⇧ + 4 는 마우스로 끈 부분만 찍어요",
+      "찍고 나면 화면 구석에 작은 미리보기가 잠깐 떴다가 저장돼요"
+    ],
+    "after": "⌘ + ⇧ + 5 를 누르면 화면 녹화도 할 수 있어요.",
+    "xp": 30,
+    "trigger": { "type": "screenshot" }
+  },
+  {
+    "id": "copy",
+    "group": "기본기",
+    "title": "복사하고 붙여넣기",
+    "why": "윈도우에서 Ctrl 을 쓰던 자리에 맥은 ⌘(command)를 써요.",
+    "steps": [
+      "글자를 마우스로 끌어서 고르세요 (파일을 골라도 돼요)",
+      "⌘ + C 를 누르면 복사돼요",
+      "붙여 넣을 곳에서 ⌘ + V 를 누르세요"
+    ],
+    "after": "⌘ + X 는 잘라내기, ⌘ + Z 는 되돌리기예요.",
+    "xp": 30,
+    "trigger": { "type": "clipboardChange" }
+  },
+  {
+    "id": "appearance",
+    "group": "기본기",
+    "title": "화면 모드 바꿔 보기",
+    "why": "밤에는 다크, 낮에는 라이트. 눈이 편한 쪽으로 바꿀 수 있어요.",
+    "steps": [
+      "‘설정 열기’를 누르면 ‘화면 모드’가 열려요",
+      {
+        "text": "‘라이트’와 ‘다크’ 중 지금과 다른 쪽을 골라 보세요",
+        "point": { "app": "com.apple.systempreferences", "label": "화면 모드", "role": "AXStaticText" }
+      }
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Appearance-Settings.extension",
+    "after": "‘자동’을 고르면 해가 지고 뜰 때 알아서 바뀌어요.",
+    "xp": 30,
+    "trigger": { "type": "appearanceChange" }
+  },
+  {
+    "id": "mission-control",
+    "group": "기본기",
+    "title": "데스크탑 하나 더 만들기",
+    "why": "화면을 여러 장 쓰는 기능이에요. 일하는 화면과 쉬는 화면을 나눠 둘 수 있어요.",
+    "steps": [
+      "⌃(control) + ↑ 를 눌러 Mission Control 을 열어요",
+      "화면 맨 위 오른쪽의 + 를 눌러 데스크탑을 추가해요",
+      "새로 생긴 데스크탑을 눌러 그쪽으로 옮겨 가요"
+    ],
+    "after": "⌃ + ← 와 ⌃ + → 로 데스크탑 사이를 오갈 수 있어요.",
+    "xp": 40,
+    "trigger": { "type": "spaceChange" }
+  },
+  {
+    "id": "grant-accessibility",
+    "group": "단축키",
+    "title": "펫에게 ‘손쉬운 사용’ 권한 주기",
+    "why": "단축키를 눌렀는지 알아채고, 눌러야 할 곳을 화면에 표시해 주려면 이 권한이 필요해요. 미션에 나온 단축키인지만 확인하고, 친 글자는 저장하지 않아요.",
+    "steps": [
+      "‘권한 요청하기’를 누르면 안내 창이 떠요. 거기서 ‘시스템 설정 열기’를 누르세요",
+      "열린 화면의 ‘손쉬운 사용’ 목록에서 MacPet 옆 스위치를 켜세요",
+      "암호나 Touch ID 를 물어보면 입력해 주세요"
+    ],
+    "permission": "accessibility",
+    "settingsURL": "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility",
+    "after": "이제 눌러야 할 곳을 화살표로 표시해 드릴게요.",
+    "xp": 40,
+    "trigger": { "type": "accessibilityPermission" }
+  },
+  {
+    "id": "shortcut-app-switch",
+    "group": "단축키",
+    "title": "⌘ Tab 으로 앱 전환하기",
+    "why": "마우스 없이 열려 있는 앱 사이를 오갈 수 있어요.",
+    "steps": [
+      "⌘(command)를 누른 채로 tab 을 한 번 눌러요",
+      "⌘ 를 누른 채 tab 을 더 누르면 다음 앱으로 넘어가요",
+      "⌘ 에서 손을 떼면 고른 앱으로 바뀌어요"
+    ],
+    "needs": "accessibility",
+    "after": "⌘ 를 누른 채 Q 를 누르면 그 자리에서 앱을 끝낼 수도 있어요.",
+    "xp": 30,
+    "trigger": { "type": "shortcut", "keys": "cmd+tab" }
+  },
+  {
+    "id": "shortcut-close-window",
+    "group": "단축키",
+    "title": "⌘ W 로 창 닫기",
+    "why": "빨간 버튼을 누르는 것과 같아요. 창만 닫히고 앱은 켜져 있어요.",
+    "steps": [
+      "닫아도 되는 창을 하나 골라요 (Finder 창이 무난해요)",
+      "⌘ + W 를 눌러요"
+    ],
+    "needs": "accessibility",
+    "after": "앱까지 끝내려면 ⌘ + Q 를 써요.",
+    "xp": 30,
+    "trigger": { "type": "shortcut", "keys": "cmd+w" }
+  },
+  {
+    "id": "shortcut-quit",
+    "group": "단축키",
+    "title": "⌘ Q 로 앱 끝내기",
+    "why": "맥은 창을 닫아도 앱이 계속 켜져 있어요. 완전히 끄려면 ⌘ + Q 예요.",
+    "steps": [
+      "끝내도 되는 앱을 앞으로 가져와요 (계산기가 무난해요)",
+      "⌘ + Q 를 눌러요",
+      "Dock 아이콘 아래의 점이 사라지면 꺼진 거예요"
+    ],
+    "needs": "accessibility",
+    "after": "Dock 아이콘 아래에 점이 있으면 켜져 있는 앱이에요.",
+    "xp": 30,
+    "trigger": { "type": "shortcut", "keys": "cmd+q" }
+  },
+  {
+    "id": "shortcut-force-quit",
+    "group": "단축키",
+    "title": "멈춘 앱 강제 종료 창 열기",
+    "why": "앱이 멈췄을 때 쓰는 창이에요. 윈도우의 Ctrl + Alt + Delete 와 비슷해요.",
+    "steps": [
+      "⌥(option) + ⌘(command) + esc 를 함께 눌러요",
+      "‘응용 프로그램 강제 종료’ 창이 떠요",
+      "지금은 아무것도 끝내지 말고 창만 닫으세요"
+    ],
+    "needs": "accessibility",
+    "after": "화면 왼쪽 위 사과 메뉴의 ‘강제 종료…’로도 열 수 있어요.",
+    "xp": 40,
+    "trigger": { "type": "shortcut", "keys": "cmd+option+escape" }
+  },
+  {
+    "id": "hot-corner",
+    "group": "Dock과 데스크탑",
+    "title": "핫 코너 정하기",
+    "why": "마우스를 화면 구석에 대기만 해도 원하는 동작이 실행돼요.",
+    "steps": [
+      "‘설정 열기’를 누르면 ‘데스크탑 및 Dock’이 열려요",
+      {
+        "text": "맨 아래로 내려 ‘핫 코너…’를 누르세요",
+        "point": { "app": "com.apple.systempreferences", "label": "핫 코너…", "role": "AXButton" }
+      },
+      "구석 하나를 골라 동작을 새로 정해 보세요"
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Desktop-Settings.extension",
+    "after": "끄고 싶으면 같은 곳에서 ‘-’를 고르면 돼요.",
+    "xp": 40,
+    "trigger": {
+      "type": "defaultsChange",
+      "domain": "com.apple.dock",
+      "keys": ["wvous-tl-corner", "wvous-tr-corner", "wvous-bl-corner", "wvous-br-corner"],
+      "ignoreValues": [0, 1]
+    }
+  },
+  {
+    "id": "dock-position",
+    "group": "Dock과 데스크탑",
+    "title": "Dock 위치 옮겨 보기",
+    "why": "화면 아래가 좁으면 Dock 을 옆으로 세워 둘 수 있어요.",
+    "steps": [
+      "‘설정 열기’를 누르면 ‘데스크탑 및 Dock’이 열려요",
+      "Dock 위치를 ‘왼쪽·하단·오른쪽’ 중 지금과 다른 쪽으로 바꿔 보세요"
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Desktop-Settings.extension",
+    "after": "마음에 안 들면 같은 곳에서 되돌리면 돼요.",
+    "xp": 40,
+    "trigger": { "type": "defaultsChange", "domain": "com.apple.dock", "keys": ["orientation"] }
+  },
+  {
+    "id": "dock-autohide",
+    "group": "Dock과 데스크탑",
+    "title": "Dock 자동으로 숨기기",
+    "why": "안 쓸 때는 Dock 이 숨어서 화면을 넓게 쓸 수 있어요.",
+    "steps": [
+      "‘설정 열기’를 누르면 ‘데스크탑 및 Dock’이 열려요",
+      {
+        "text": "‘자동으로 Dock 가리기와 보기’를 켜 보세요",
+        "point": { "app": "com.apple.systempreferences", "label": "자동으로 Dock 가리기와 보기" }
+      },
+      "마우스를 Dock 이 있던 가장자리로 가져가면 다시 나타나요"
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Desktop-Settings.extension",
+    "after": "⌥(option) + ⌘ + D 로도 켜고 끌 수 있어요.",
+    "xp": 40,
+    "trigger": { "type": "defaultsChange", "domain": "com.apple.dock", "keys": ["autohide"], "to": true }
+  },
+  {
+    "id": "reduce-transparency",
+    "group": "손쉬운 사용",
+    "title": "투명도 줄이기 켜 보기",
+    "why": "비치는 배경을 없애서 글자가 또렷해져요.",
+    "steps": [
+      "‘설정 열기’를 누르면 손쉬운 사용의 ‘디스플레이’가 열려요",
+      {
+        "text": "‘투명도 줄이기’를 켜 보세요",
+        "point": { "app": "com.apple.systempreferences", "label": "투명도 줄이기" }
+      },
+      "마음에 안 들면 다시 꺼도 괜찮아요"
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Accessibility-Settings.extension?Display",
+    "xp": 50,
+    "trigger": { "type": "accessibility", "flag": "reduceTransparency", "to": true }
+  },
+  {
+    "id": "reduce-motion",
+    "group": "손쉬운 사용",
+    "title": "동작 줄이기 켜 보기",
+    "why": "화면이 휙휙 움직여 어지러울 때 써요. 전환 효과가 차분해져요.",
+    "steps": [
+      "‘설정 열기’를 누르면 손쉬운 사용의 ‘동작’이 열려요",
+      {
+        "text": "‘동작 줄이기’를 켜 보세요",
+        "point": { "app": "com.apple.systempreferences", "label": "동작 줄이기" }
+      },
+      "⌃(control) + ↑ 로 Mission Control 을 열어 보면 차이가 보여요"
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Accessibility-Settings.extension?Motion",
+    "xp": 50,
+    "trigger": { "type": "accessibility", "flag": "reduceMotion", "to": true }
+  },
+  {
+    "id": "increase-contrast",
+    "group": "손쉬운 사용",
+    "title": "대비 증가 켜 보기",
+    "why": "버튼과 칸의 테두리가 진해져서 경계가 또렷하게 보여요.",
+    "steps": [
+      "‘설정 열기’를 누르면 손쉬운 사용의 ‘디스플레이’가 열려요",
+      {
+        "text": "‘대비 증가’를 켜 보세요",
+        "point": { "app": "com.apple.systempreferences", "label": "대비 증가" }
+      },
+      "마음에 안 들면 다시 꺼도 괜찮아요"
+    ],
+    "settingsURL": "x-apple.systempreferences:com.apple.Accessibility-Settings.extension?Display",
+    "xp": 50,
+    "trigger": { "type": "accessibility", "flag": "increaseContrast", "to": true }
+  },
+  {
+    "id": "finder-pathbar",
+    "group": "Finder",
+    "title": "Finder 경로 막대 보기",
+    "why": "지금 보는 폴더가 어디에 들어 있는지 창 아래에 길처럼 보여 줘요.",
+    "steps": [
+      {
+        "text": "Dock 에서 Finder(웃는 얼굴)를 눌러 창을 열어요",
+        "point": { "app": "com.apple.dock", "in": "dock", "label": "Finder" }
+      },
+      {
+        "text": "화면 맨 위 메뉴 막대에서 ‘보기’를 눌러요",
+        "point": { "app": "com.apple.finder", "in": "menubar", "label": "보기", "role": "AXMenuBarItem" }
+      },
+      {
+        "text": "‘경로 막대 보기’를 고르세요",
+        "point": { "app": "com.apple.finder", "in": "menubar", "label": "경로 막대 보기", "role": "AXMenuItem" }
+      }
+    ],
+    "after": "경로 막대의 폴더를 두 번 누르면 그 폴더로 바로 가요.",
+    "xp": 40,
+    "trigger": { "type": "defaultsChange", "domain": "com.apple.finder", "keys": ["ShowPathbar"], "to": true }
+  }
+]

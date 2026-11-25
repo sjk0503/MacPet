@@ -1,0 +1,16 @@
+{
+ "v": 1,
+ "species": "uni",
+ "shiny": false,
+ "hatched": true,
+ "crack": 0,
+ "name": "큐에이",
+ "petDay": "",
+ "pets": 0,
+ "lastSeen": 0,
+ "level": 4,
+ "exp": 20,
+ "done": {
+  "spotlight-calc": "x"
+ }
+}

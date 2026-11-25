@@ -1,0 +1,52 @@
+[
+ {
+  "wait": 4.6
+ },
+ {
+  "expect": "document.querySelector('#chip').textContent.includes('옛펫') && document.querySelector('#chip').textContent.includes('LV3')",
+  "name": "종이 사라진 옛 v1 저장에서도 이름과 레벨을 이어 감"
+ },
+ {
+  "expect": "document.querySelector('#bubble .b-name').textContent === '복사하고 붙여넣기' && document.querySelector('#bubble .b-step').textContent === '1 / 3'",
+  "name": "저장된 현재 미션 안내가 1단계로 복원됨"
+ },
+ {
+  "tap": "#bubble .b-next"
+ },
+ {
+  "expect": "document.querySelector('#bubble .b-step').textContent === '2 / 3'",
+  "name": "안내를 다음 단계로 넘길 수 있음"
+ },
+ {
+  "wait": 0.3
+ },
+ {
+  "expectSave": "s.v===1&&typeof s.species==='string'&&/^(nyang|bam|hammy|mung|peng|chick|rabbit|panda|seal|uni)$/.test(s.species)",
+  "name": "실제 저장 파일이 0.1.0 읽기 조건(v===1 이고 이 버전에 있는 종)을 만족 — 깨진 옛 종이 고쳐져 다운그레이드 가능"
+ },
+ {
+  "expectSave": "s.name==='옛펫'&&s.level===3&&s.exp===15&&!!s.guide&&s.guide.id==='copy'&&s.guide.step===1&&!!s.done&&s.done.screenshot==='2024-01-02T00:00:00.000Z'&&s.done['removed-legacy-mission']==='2024-01-01T00:00:00.000Z'",
+  "name": "0.1.0 이 읽는 name·level·exp·guide(1단계 이동 반영)·done 이 저장 파일에 그대로 남음 (사라진 미션 기록 포함)"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "expect": "!document.querySelector('#card').hidden && document.querySelector('.card-hd b').textContent === '옛펫' && document.querySelector('.card-hd .sub').textContent.includes('LV 3')",
+  "name": "이름표를 눌러 연 카드가 옛 진행도를 보여 줌"
+ },
+ {
+  "expect": "document.querySelector('.card-hd .prog').textContent === '미션 1 / ' + window.__MACPET__.missions.length && document.querySelector('.wpet-bar').getAttribute('aria-label') === '경험치 15 / 35'",
+  "name": "사라진 미션 기록은 진행률에 세지 않고 경험치는 그대로"
+ },
+ {
+  "tap": ".card-x"
+ },
+ {
+  "expect": "document.querySelector('#card').hidden",
+  "name": "카드를 닫을 수 있음"
+ }
+]

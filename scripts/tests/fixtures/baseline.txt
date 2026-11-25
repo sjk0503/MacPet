@@ -1,0 +1,5 @@
+# 테스트 전용 고정 기준선. 실제 기준선(scripts/apple-macos-releases.baseline.txt)이 바뀌어도 이 파일은 그대로 둔다.
+macOS 27.3 beta 2 (26C5047e)
+macOS 27.2.1 (26B131)
+macOS 27.0.1 (26A434)
+macOS 26.6.2 (25G83)

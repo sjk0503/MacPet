@@ -1,0 +1,32 @@
+[
+ {
+  "native": { "type": "command", "name": "toggleMissions" }
+ },
+ {
+  "eval": "Array.from(document.querySelectorAll('.m-row')).find(row => row.textContent.includes('⌘ Tab')).click()"
+ },
+ {
+  "expect": "document.querySelector('.m-item.is-open .m-set').textContent === '권한 미션 보기'",
+  "name": "예전에 권한 미션을 수동 완료한 펫에도 잠긴 단축키에서 권한 미션으로 가는 버튼이 있음"
+ },
+ {
+  "eval": "document.querySelector('.m-item.is-open .m-set').scrollIntoView({block:'center'})"
+ },
+ {
+  "tap": ".m-item.is-open .m-set"
+ },
+ {
+  "expect": "document.querySelector('.m-item.is-open .m-go').textContent === '권한 요청하기' && document.querySelector('.m-item.is-open .m-set').textContent === '설정 열기' && !document.querySelector('.m-item.is-open .m-skip')",
+  "name": "수동 완료 기록이 있어도 권한 요청과 설정 열기에 다시 접근할 수 있음"
+ },
+ {
+  "native": { "type": "permission", "name": "accessibility", "granted": true }
+ },
+ {
+  "native": { "type": "mission", "id": "grant-accessibility" }
+ },
+ {
+  "expect": "document.querySelector('.m-item.is-open .tag').textContent === '✓ 완료' && document.querySelector('.card-hd .sub').textContent.includes('LV 4') && document.querySelector('.wpet-bar').getAttribute('aria-label') === '경험치 20 / 40' && document.querySelector('.card-hd .prog').textContent === '미션 1 / 17'",
+  "name": "권한을 실제로 허용해도 기존 완료 기록과 경험치를 보존함"
+ }
+]

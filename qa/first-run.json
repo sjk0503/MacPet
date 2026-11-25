@@ -1,0 +1,202 @@
+[
+ {
+  "wait": 1.5
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('알이 도착')",
+  "name": "알 인사말이 뜸"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('먼저 알')",
+  "name": "알일 때 이름표를 누르면 안내 문구"
+ },
+ {
+  "tap": "#cv",
+  "count": 3,
+  "gap": 0.7
+ },
+ {
+  "wait": 2.4
+ },
+ {
+  "expect": "!!document.querySelector('#bubble input')",
+  "name": "세 번 눌러 부화 → 이름 칸"
+ },
+ {
+  "tap": "#bubble input"
+ },
+ {
+  "type": "Mo"
+ },
+ {
+  "wait": 0.3
+ },
+ {
+  "expect": "document.querySelector('#bubble input').value.endsWith('Mo')",
+  "name": "이름 칸에 키 입력이 들어감"
+ },
+ {
+  "tap": "#bubble form button"
+ },
+ {
+  "wait": 3.8
+ },
+ {
+  "expect": "!!document.querySelector('#bubble .b-go')",
+  "name": "이름 지은 뒤 첫 미션을 권함"
+ },
+ {
+  "tap": "#bubble .b-go"
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "(document.querySelector('#bubble .b-step')||{textContent:''}).textContent.trim().startsWith('1')",
+  "name": "알려 줘 → 안내 1단계"
+ },
+ {
+  "tap": "#bubble .b-next"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "(document.querySelector('#bubble .b-step')||{textContent:''}).textContent.trim().startsWith('2')",
+  "name": "다음 → 2단계"
+ },
+ {
+  "tap": "#bubble .b-prev"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "(document.querySelector('#bubble .b-step')||{textContent:''}).textContent.trim().startsWith('1')",
+  "name": "이전 → 1단계"
+ },
+ {
+  "tap": "#cv"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "wait": 3.2
+ },
+ {
+  "expect": "!!document.querySelector('#bubble .b-step')",
+  "name": "펫을 두드린 뒤 안내로 돌아옴"
+ },
+ {
+  "native": {
+   "type": "mission",
+   "id": "spotlight-calc"
+  }
+ },
+ {
+  "wait": 1.0
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('성공')",
+  "name": "미션 성공 문구"
+ },
+ {
+  "wait": 9.5
+ },
+ {
+  "expect": "!!document.querySelector('#bubble .b-go') && document.querySelector('#bubble').textContent.includes('스크린샷')",
+  "name": "연출 뒤 다음 미션(스크린샷)을 권함"
+ },
+ {
+  "tap": "#bubble .b-later"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "document.querySelector('#bubble').hidden",
+  "name": "나중에 → 말풍선 닫힘"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "expect": "!document.querySelector('#card').hidden",
+  "name": "이름표 → 미션 카드 열림"
+ },
+ {
+  "tap": ".m-detail .m-go"
+ },
+ {
+  "wait": 0.5
+ },
+ {
+  "expect": "document.querySelector('#card').hidden && !!document.querySelector('#bubble .b-step')",
+  "name": "같이 하기 → 카드 닫히고 안내 시작"
+ },
+ {
+  "tap": "#bubble .b-x"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "document.querySelector('#bubble').hidden",
+  "name": "안내 × → 닫힘"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "tap": ".m-skip"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "!!document.querySelector('.m-yes')",
+  "name": "반응이 없어요 → 확인 줄"
+ },
+ {
+  "tap": ".m-yes"
+ },
+ {
+  "wait": 1.0
+ },
+ {
+  "expect": "document.querySelector('#bubble').textContent.includes('성공')",
+  "name": "직접 완료 → 성공 문구"
+ },
+ {
+  "wait": 9.5
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "wait": 0.6
+ },
+ {
+  "tap": ".card-x"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "expect": "document.querySelector('#card').hidden",
+  "name": "카드 × → 닫힘"
+ }
+]

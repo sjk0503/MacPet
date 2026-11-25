@@ -1,0 +1,27 @@
+{
+ "v": 1,
+ "species": "uni",
+ "shiny": false,
+ "hatched": true,
+ "crack": 0,
+ "name": "보리",
+ "petDay": "2025-08-01",
+ "pets": 0,
+ "lastSeen": 0,
+ "level": 4,
+ "exp": 20,
+ "done": {
+  "spotlight-calc": "2025-08-01T00:00:00.000Z",
+  "screenshot": "2025-08-02T00:00:00.000Z",
+  "copy": "2025-08-03T00:00:00.000Z"
+ },
+ "collection": [
+  { "species": "nyang", "name": "첫째", "shiny": false, "graduatedAt": "2025-01-10T00:00:00.000Z", "completed": ["spotlight-calc"] },
+  { "species": "bam", "name": "밤톨", "shiny": false, "graduatedAt": "2025-02-10T00:00:00.000Z", "completed": ["spotlight-calc"] },
+  { "species": "hammy", "name": "볼빵", "shiny": false, "graduatedAt": "2025-03-10T00:00:00.000Z", "completed": ["spotlight-calc"] },
+  { "species": "mung", "name": "콩이", "shiny": false, "graduatedAt": "2025-04-10T00:00:00.000Z", "completed": ["spotlight-calc"] },
+  { "species": "peng", "name": "펭펭", "shiny": false, "graduatedAt": "2025-05-10T00:00:00.000Z", "completed": ["spotlight-calc"] },
+  { "species": "chick", "name": "삐약", "shiny": false, "graduatedAt": "2025-06-10T00:00:00.000Z", "completed": ["spotlight-calc"] },
+  { "species": "rabbit", "name": "무지개솜사탕구름", "shiny": true, "graduatedAt": "2025-07-10T00:00:00.000Z", "completed": ["spotlight-calc"] }
+ ]
+}

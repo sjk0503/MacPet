@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MacPet</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- 400×560 무대: 뷰포트 오른쪽 아래에 붙는다 -->
+  <div id="stage" class="stage">
+    <section id="card" class="card" hidden role="dialog" aria-label="미션 카드"></section>
+    <div id="mover" class="wpet-mover">
+      <div id="bubble" class="bubble" hidden role="status" aria-live="polite"></div>
+      <canvas id="cv" class="wpet-px pet-cv" tabindex="0" role="button" aria-label="펫"></canvas>
+      <div class="wpet-ground"></div>
+      <button id="chip" class="chip" type="button"></button>
+    </div>
+  </div>
+  <script src="engine.js"></script>
+  <script src="generations.js"></script>
+  <script src="collection.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

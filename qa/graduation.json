@@ -1,0 +1,181 @@
+[
+ {
+  "until": "(function(){const c=document.querySelector('#chip');return c.textContent.includes('노을이')&&c.querySelector('.lv').textContent==='LV9'&&!!document.querySelector('#bubble .b-go');})()",
+  "timeout": 20,
+  "name": "LV9 저장을 이어 받고 인사가 끝나 다음 미션을 권함 (연출 대기열이 빔)"
+ },
+ {
+  "expect": "document.querySelectorAll('.collection-entry').length === 0 && document.querySelector('#card').hidden",
+  "name": "졸업 전에는 앨범 항목이 없고 카드가 닫혀 있음"
+ },
+ {
+  "tap": "#cv"
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#chip'),lv=c.querySelector('.lv');return !!lv&&lv.textContent==='LV10'&&c.textContent.includes('노을이')&&document.body.innerText.includes('졸업');})()",
+  "timeout": 35,
+  "name": "한 번 쓰다듬어 Lv.10 → 다 자란 펫이 아직 있는 채로 화면에 보이는 글자로 졸업을 알림"
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#chip');return !c.querySelector('.lv')&&c.textContent.includes('알');})()",
+  "timeout": 35,
+  "name": "졸업 연출 뒤 새 알이 옴"
+ },
+ {
+  "expectSave": "(function(){if(s.v!==1||s.hatched!==false||!Array.isArray(s.collection)||s.collection.length!==1)return false;const r=s.collection[0];return r.name==='노을이'&&r.species==='uni'&&r.shiny===true&&Array.isArray(r.completed)&&r.completed.includes('removed-legacy-mission')&&r.completed.includes('spotlight-calc')&&r.completed.includes('screenshot');})()",
+  "name": "v:1 저장 파일에 졸업 기록 1건 (이름·종·반짝이·끝낸 미션, 사라진 미션 id 포함)과 새 알이 함께 남음"
+ },
+ {
+  "tap": "#chip"
+ },
+ {
+  "until": "!!document.querySelector('#card[data-view=collection]:not([hidden])') && document.querySelectorAll('.collection-entry').length === 1",
+  "timeout": 10,
+  "name": "알일 때 이름표를 누르면 졸업 앨범이 열리고 항목은 1개"
+ },
+ {
+  "expect": "document.querySelector('.collection-entry').textContent.includes('노을이')",
+  "name": "앨범 항목에 졸업한 펫의 이름"
+ },
+ {
+  "expect": "(function(){const c=document.querySelector('.collection-entry canvas');if(!c||!c.width||!c.height||!c.getBoundingClientRect().width)return false;const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data;for(let i=3;i<d.length;i+=4)if(d[i])return true;return false;})()",
+  "name": "앨범 항목의 캔버스에 펫 그림이 실제로 그려짐"
+ },
+ {
+  "expect": "(function(){const m=document.querySelector('.collection-entry .collection-shiny');return !!m&&m.getBoundingClientRect().width>0&&m.textContent.trim().length>0;})()",
+  "name": "반짝이 펫은 앨범 항목에 반짝이 표시가 보임"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showCollection"
+  }
+ },
+ {
+  "expect": "!!document.querySelector('#card[data-view=collection]:not([hidden])') && document.querySelectorAll('.collection-entry').length === 1 && document.querySelectorAll('#card').length === 1",
+  "name": "이미 열린 앨범에 showCollection 명령을 보내도 열린 채 항목은 정확히 1개"
+ },
+ {
+  "expect": "(function(){const b=document.querySelector('.collection-close');if(!b||b.tagName!=='BUTTON'||b.disabled||!b.getAttribute('aria-label'))return false;b.focus();return document.activeElement===b;})()",
+  "name": "앨범 닫기 단추는 이름이 있고 키보드 포커스를 받음"
+ },
+ {
+  "tap": ".collection-close"
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#card');return c.hidden||c.dataset.view!=='collection';})()",
+  "timeout": 5,
+  "name": "닫기 단추로 앨범이 닫힘 (카드가 숨겨지거나 앨범 화면이 아님)"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showCollection"
+  }
+ },
+ {
+  "until": "!!document.querySelector('#card[data-view=collection]:not([hidden])') && document.querySelectorAll('.collection-entry').length === 1",
+  "timeout": 5,
+  "name": "닫은 뒤 showCollection 명령으로 다시 열어도 항목은 1개"
+ },
+ {
+  "tap": ".collection-close"
+ },
+ {
+  "until": "document.querySelector('#card').hidden",
+  "timeout": 5,
+  "name": "다시 닫힘"
+ },
+ {
+  "tap": "#cv",
+  "count": 3,
+  "gap": 0.7
+ },
+ {
+  "until": "!!document.querySelector('#bubble input') && !document.querySelector('#bubble').hidden",
+  "timeout": 15,
+  "name": "새 알을 세 번 두드려 부화 → 이름 칸"
+ },
+ {
+  "wait": 0.4
+ },
+ {
+  "tap": "#bubble input"
+ },
+ {
+  "expect": "document.activeElement === document.querySelector('#bubble input')",
+  "name": "이름 칸을 누르면 포커스가 들어감"
+ },
+ {
+  "type": "Mo"
+ },
+ {
+  "expect": "(function(){const v=document.querySelector('#bubble input').value;window.__qaName=Array.from(v.trim()).slice(0,8).join('');return v.includes('Mo');})()",
+  "name": "이름 칸에 키 입력이 들어감"
+ },
+ {
+  "tap": "#bubble form button"
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#chip'),lv=c.querySelector('.lv');return !!lv&&lv.textContent==='LV1'&&c.firstElementChild.textContent===window.__qaName&&window.__qaName!=='노을이'&&!document.querySelector('#bubble input');})()",
+  "timeout": 10,
+  "name": "이름을 내면 새 펫이 그 이름으로 Lv1 부터 시작"
+ },
+ {
+  "expectSave": "s.v===1&&s.hatched===true&&s.level===1&&!!window.__qaName&&s.name===window.__qaName&&Object.keys(s.done||{}).length===0&&Array.isArray(s.collection)&&s.collection.length===1&&s.collection[0].name==='노을이'",
+  "name": "새 펫 저장 파일은 Lv1·끝낸 미션 0개이고 졸업 기록 1건은 그대로"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "until": "!document.querySelector('#card').hidden && document.querySelector('#card').dataset.view !== 'collection' && document.querySelectorAll('.m-item').length === window.__MACPET__.missions.length && document.querySelectorAll('.collection-entry').length === 0",
+  "timeout": 10,
+  "name": "showMissions 명령으로 미션 카드가 열림 (앨범 화면이 아님)"
+ },
+ {
+  "expect": "document.querySelectorAll('.m-item.is-done').length === 0 && !document.querySelector('.m-item .tag.ok')",
+  "name": "이전 펫이 끝낸 미션이 새 펫에게는 모두 다시 열려 있음"
+ },
+ {
+  "eval": "(document.querySelector('.open-collection').scrollIntoView({block:'center'}), 'scrolled')"
+ },
+ {
+  "tap": ".open-collection"
+ },
+ {
+  "until": "!!document.querySelector('#card[data-view=collection]:not([hidden])') && document.querySelectorAll('.collection-entry').length === 1 && document.querySelector('.collection-entry').textContent.includes('노을이') && !!document.querySelector('.collection-entry .collection-shiny') && !document.querySelector('.m-item')",
+  "timeout": 5,
+  "name": "미션 카드의 앨범 단추로 이전 졸업 앨범이 열리고 졸업한 펫 이름이 남아 있음"
+ },
+ {
+  "tap": ".collection-close"
+ },
+ {
+  "until": "(function(){const c=document.querySelector('#card');return c.hidden||c.dataset.view!=='collection';})()",
+  "timeout": 5,
+  "name": "앨범을 닫으면 앨범 화면이 사라짐 (카드가 숨겨지거나 앨범 화면이 아님)"
+ },
+ {
+  "native": {
+   "type": "command",
+   "name": "showMissions"
+  }
+ },
+ {
+  "until": "!document.querySelector('#card').hidden && document.querySelector('#card').dataset.view !== 'collection' && !!document.querySelector('.m-item') && !!document.querySelector('.card-x:not(.collection-close)')",
+  "timeout": 5,
+  "name": "앨범을 닫은 뒤에도 미션 카드는 평소처럼 열림"
+ },
+ {
+  "tap": ".card-x"
+ },
+ {
+  "until": "document.querySelector('#card').hidden && document.querySelector('#chip').getAttribute('aria-expanded') === 'false'",
+  "timeout": 5,
+  "name": "미션 카드 × → 닫힘"
+ }
+]

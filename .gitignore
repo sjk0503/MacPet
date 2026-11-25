@@ -1,0 +1,14 @@
+.build/
+build/
+*.app
+.DS_Store
+.swiftpm/
+.signing-id
+.agent-history/
+.claude/
+.agents/skills/impeccable/
+__pycache__/
+*.p12
+*.p8
+.env
+.env.local

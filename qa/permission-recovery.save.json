@@ -1,0 +1,10 @@
+{
+ "v": 1,
+ "species": "uni",
+ "hatched": true,
+ "name": "복구",
+ "level": 4,
+ "exp": 20,
+ "done": { "grant-accessibility": "2026-11-17T00:00:00Z" },
+ "manual": { "grant-accessibility": true }
+}
